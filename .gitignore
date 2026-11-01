@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# React Native & Mobile
+app/android/app/build/
+app/android/.gradle/
+app/android/build/
+app/android/app/.cxx/
+app/ios/Pods/
+app/ios/build/
+app/ios/DerivedData/
+*.xcworkspace
+!app/ios/*.xcworkspace
+app/ios/*.xcworkspace/xcuserdata/
+app/ios/*.xcworkspace/xcshareddata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Server uploads and storage
+uploads/
+server/uploads/
+
+# Logs and debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS & Editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
