@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import {
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Attachment } from '../domain/types';
+import { draftStore } from '../queue/draftStore';
 import {
   capturePhotoFromCamera,
   pickPhotosFromGallery,
@@ -30,11 +31,35 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isPicking, setIsPicking] = useState(false);
 
+  // Load existing in-progress draft on cold start (recovers after app killed in background)
+  useEffect(() => {
+    let isMounted = true;
+    draftStore.loadDraft().then(draft => {
+      if (isMounted && draft) {
+        if (draft.description) {
+          setDescription(draft.description);
+        }
+        if (draft.attachments && draft.attachments.length > 0) {
+          setAttachments(draft.attachments);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const remainingSlots = 5 - attachments.length;
+
+  const handleDescriptionChange = (text: string) => {
+    setDescription(text);
+    draftStore.saveDraft({ description: text, attachments });
+  };
 
   const handlePickFromGallery = async () => {
     if (remainingSlots <= 0) {
-      Alert.alert('Max Limit', 'Maximum of 5 photos per report reached.');
+      Alert.alert('Limit Reached', 'Maximum of 5 photos per report allowed.');
       return;
     }
 
@@ -43,18 +68,20 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
     setIsPicking(false);
 
     if (error) {
-      Alert.alert('Photo Selection Warning', error);
+      Alert.alert('Photo Selection', error);
       return;
     }
 
     if (newPhotos.length > 0) {
-      setAttachments(prev => [...prev, ...newPhotos]);
+      const updated = [...attachments, ...newPhotos];
+      setAttachments(updated);
+      draftStore.saveDraft({ description, attachments: updated });
     }
   };
 
   const handleCaptureCamera = async () => {
     if (remainingSlots <= 0) {
-      Alert.alert('Max Limit', 'Maximum of 5 photos per report reached.');
+      Alert.alert('Limit Reached', 'Maximum of 5 photos per report allowed.');
       return;
     }
 
@@ -63,37 +90,43 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
     setIsPicking(false);
 
     if (error) {
-      Alert.alert('Camera Warning', error);
+      Alert.alert('Camera', error);
       return;
     }
 
     if (attachment) {
-      setAttachments(prev => [...prev, attachment]);
+      const updated = [...attachments, attachment];
+      setAttachments(updated);
+      draftStore.saveDraft({ description, attachments: updated });
     }
   };
 
   const handleRemovePhoto = (id: string) => {
-    setAttachments(prev => prev.filter(p => p.id !== id));
+    const updated = attachments.filter(p => p.id !== id);
+    setAttachments(updated);
+    draftStore.saveDraft({ description, attachments: updated });
   };
 
-  const handleQueue = () => {
+  const handleQueue = async () => {
     const trimmed = description.trim();
     if (!trimmed) {
-      Alert.alert('Description Required', 'Please enter a description of the site inspection.');
+      Alert.alert('Description Required', 'Please enter inspection findings.');
       return;
     }
     if (attachments.length < 1) {
-      Alert.alert('Photo Required', 'Every report requires between 1 and 5 photographs.');
+      Alert.alert('Photos Required', 'Please attach between 1 and 5 photos.');
       return;
     }
 
     onQueueReport(trimmed, attachments);
     setDescription('');
     setAttachments([]);
+    await draftStore.clearDraft();
   };
 
   const totalBytes = attachments.reduce((acc, a) => acc + a.fileSizeBytes, 0);
   const canSubmit = description.trim().length > 0 && attachments.length >= 1 && attachments.length <= 5;
+  const hasDraft = description.length > 0 || attachments.length > 0;
 
   return (
     <ScrollView
@@ -103,7 +136,12 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
       {/* Description Section */}
       <View style={styles.section}>
         <View style={styles.labelRow}>
-          <Text style={styles.label}>DESCRIPTION // MANDATORY</Text>
+          <View style={styles.labelGroup}>
+            <Text style={styles.label}>Inspection Notes (Required)</Text>
+            {hasDraft ? (
+              <Text style={styles.draftBadge}>Draft saved on phone</Text>
+            ) : null}
+          </View>
           <Text style={styles.charCount}>{description.length}/500</Text>
         </View>
         <TextInput
@@ -114,16 +152,16 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
           numberOfLines={4}
           maxLength={500}
           value={description}
-          onChangeText={setDescription}
+          onChangeText={handleDescriptionChange}
         />
-        <Text style={styles.helperText}>Non-blank field report required by site protocol.</Text>
+        <Text style={styles.helperText}>Required notes describing equipment, hazard, or site condition.</Text>
       </View>
 
       {/* Photographs Section */}
       <View style={styles.section}>
         <View style={styles.labelRow}>
-          <Text style={styles.label}>SITE PHOTOGRAPHS // BOUNDS [1–5]</Text>
-          <Text style={styles.counterText}>{attachments.length} OF 5 ATTACHED</Text>
+          <Text style={styles.label}>Site Photos (1 to 5 required)</Text>
+          <Text style={styles.counterText}>{attachments.length} of 5 attached</Text>
         </View>
 
         <View style={styles.grid}>
@@ -132,13 +170,13 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
               <Image source={{ uri: photo.uri }} style={styles.thumbnail} />
               <View style={styles.photoMeta}>
                 <Text style={styles.photoName} numberOfLines={1}>
-                  {index + 1}. {photo.fileName}
+                  Photo {index + 1}: {photo.fileName}
                 </Text>
                 <Text style={styles.sizeBreakdown}>
-                  HARDWARE FILE SIZE: {(photo.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB
+                  File size: {(photo.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB
                 </Text>
                 <Text style={styles.compressedTag}>
-                  ✓ VERIFIED &lt; 5.0 MB CEILING
+                  ✓ Under 5.0 MB limit
                 </Text>
               </View>
               <Pressable
@@ -147,7 +185,7 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
                 hitSlop={10}
                 accessibilityRole="button"
                 accessibilityLabel="Remove photo">
-                <Text style={styles.removeText}>×</Text>
+                <Text style={styles.removeText}>✕</Text>
               </Pressable>
             </Card>
           ))}
@@ -162,15 +200,14 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
                   pressed && styles.addSlotPressed,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Pick photo from device gallery">
+                accessibilityLabel="Add photos from gallery">
                 {isPicking ? (
                   <ActivityIndicator size="small" color={colors.textPrimary} />
                 ) : (
                   <>
-                    <Text style={styles.addIcon}>[ 🖼️ ]</Text>
-                    <Text style={styles.addText}>PICK FROM GALLERY</Text>
+                    <Text style={styles.addText}>Add from Gallery</Text>
                     <Text style={styles.addSubtext}>
-                      {remainingSlots} SLOTS REMAINING
+                      {remainingSlots} slots available
                     </Text>
                   </>
                 )}
@@ -184,14 +221,13 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
                   pressed && styles.addSlotPressed,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Capture photo with device camera">
+                accessibilityLabel="Take photo with camera">
                 {isPicking ? (
                   <ActivityIndicator size="small" color={colors.textPrimary} />
                 ) : (
                   <>
-                    <Text style={styles.addIcon}>[ 📷 ]</Text>
-                    <Text style={styles.addText}>CAPTURE CAMERA</Text>
-                    <Text style={styles.addSubtext}>HARDWARE CAMERA</Text>
+                    <Text style={styles.addText}>Take Photo</Text>
+                    <Text style={styles.addSubtext}>Device camera</Text>
                   </>
                 )}
               </Pressable>
@@ -199,17 +235,16 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
           ) : null}
         </View>
 
-        {/* Compression Guarantee Summary */}
         {attachments.length > 0 ? (
           <View style={styles.summaryBox}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>TOTAL ATTACHMENTS:</Text>
-              <Text style={styles.summaryValue}>{attachments.length} OF 5 PHOTOS</Text>
+              <Text style={styles.summaryLabel}>Total photos:</Text>
+              <Text style={styles.summaryValue}>{attachments.length} of 5</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>TOTAL PAYLOAD SIZE:</Text>
+              <Text style={styles.summaryLabel}>Total payload:</Text>
               <Text style={styles.summarySuccess}>
-                {(totalBytes / (1024 * 1024)).toFixed(2)} MB (UNDER 5 MB LIMIT)
+                {(totalBytes / (1024 * 1024)).toFixed(2)} MB (Safe on phone)
               </Text>
             </View>
           </View>
@@ -219,8 +254,8 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
       {/* Primary Action Button */}
       <View style={styles.actionContainer}>
         <Button
-          title="QUEUE REPORT FOR DELIVERY"
-          subtitle="Delivers unattended over cellular/WiFi link"
+          title="Save Report to Outbox"
+          subtitle="Saved to phone disk · Delivers automatically when signal returns"
           variant="primary"
           onPress={handleQueue}
           disabled={!canSubmit}
@@ -248,18 +283,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xs + 2,
   },
+  labelGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   label: {
-    ...typography.micro,
-    color: colors.textSecondary,
-    letterSpacing: 0.8,
+    ...typography.bodySemibold,
+    color: colors.textPrimary,
+    fontSize: 13,
+  },
+  draftBadge: {
+    ...typography.caption,
+    color: colors.emerald,
+    fontSize: 10,
+    fontWeight: '600',
   },
   charCount: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
   },
   counterText: {
-    ...typography.micro,
-    color: colors.textPrimary,
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   textArea: {
     backgroundColor: colors.surfaceInput,
@@ -306,12 +352,14 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginTop: 2,
-    fontSize: 10,
+    fontSize: 11,
   },
   compressedTag: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.emerald,
     marginTop: 2,
+    fontSize: 10,
+    fontWeight: '600',
   },
   removeButton: {
     width: 28,
@@ -325,8 +373,8 @@ const styles = StyleSheet.create({
   },
   removeText: {
     color: colors.textSecondary,
-    fontSize: 16,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 14,
   },
   attachButtonsRow: {
     flexDirection: 'row',
@@ -334,7 +382,7 @@ const styles = StyleSheet.create({
   },
   addSlot: {
     flex: 1,
-    minHeight: 76,
+    minHeight: 70,
     borderRadius: radii.sm,
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -347,20 +395,16 @@ const styles = StyleSheet.create({
   addSlotPressed: {
     backgroundColor: colors.surfaceElevated,
   },
-  addIcon: {
-    ...typography.mono,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
   addText: {
-    ...typography.micro,
+    ...typography.bodySemibold,
     color: colors.textPrimary,
+    fontSize: 13,
   },
   addSubtext: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
     marginTop: 2,
-    fontSize: 9,
+    fontSize: 11,
   },
   summaryBox: {
     marginTop: spacing.md,
@@ -376,16 +420,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   summaryLabel: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
   },
   summaryValue: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   summarySuccess: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.emerald,
+    fontWeight: '600',
   },
   actionContainer: {
     marginTop: spacing.md,

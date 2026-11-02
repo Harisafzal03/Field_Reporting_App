@@ -22,7 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <View style={styles.header}>
       <View style={styles.left}>
-        <Text style={styles.title}>FIELD OPS</Text>
+        <Text style={styles.title}>Field Reports</Text>
         <NetworkPill
           speed={networkSpeed}
           bandwidthLabel={bandwidthLabel}
@@ -33,12 +33,12 @@ export const Header: React.FC<HeaderProps> = ({
         onPress={onOpenChaos}
         hitSlop={12}
         style={({ pressed }) => [
-          styles.chaosButton,
-          pressed && styles.chaosButtonPressed,
+          styles.diagButton,
+          pressed && styles.diagButtonPressed,
         ]}
         accessibilityRole="button"
         accessibilityLabel="Open Chaos and Reset controller">
-        <Text style={styles.chaosIcon}>⚡</Text>
+        <Text style={styles.diagText}>Tools</Text>
         {pendingCount > 0 ? (
           <View style={styles.badgeCount}>
             <Text style={styles.badgeCountText}>{pendingCount}</Text>
@@ -68,28 +68,28 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h3,
     color: colors.textPrimary,
-    letterSpacing: 1.5,
-    fontWeight: '800',
+    fontWeight: '700',
+    fontSize: 16,
   },
-  chaosButton: {
-    paddingHorizontal: spacing.sm + 2,
+  diagButton: {
+    paddingHorizontal: spacing.sm + 4,
     paddingVertical: spacing.xs + 2,
-    borderRadius: radii.sm,
+    borderRadius: radii.xs,
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.borderHighlight,
     position: 'relative',
-    minWidth: 36,
-    height: 32,
+    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  chaosButtonPressed: {
+  diagButtonPressed: {
     backgroundColor: colors.surfaceActive,
   },
-  chaosIcon: {
-    fontSize: 14,
+  diagText: {
+    ...typography.micro,
     color: colors.textPrimary,
+    fontWeight: '600',
   },
   badgeCount: {
     position: 'absolute',

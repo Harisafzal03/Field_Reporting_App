@@ -34,7 +34,8 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     ? new Date((report as ServerReport).receivedAt).toLocaleString()
     : new Date((report as Report).createdAt).toLocaleString();
 
-  // Resolve image URI whether from server (/uploads/...) or local disk
+  const isServerReport = Boolean((report as ServerReport).receivedAt || (report as Report).serverReportId);
+
   const resolvePhotoUri = (urlOrUri: string) => {
     if (urlOrUri.startsWith('http://') || urlOrUri.startsWith('https://')) {
       return urlOrUri;
@@ -54,7 +55,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
       transparent={true}
       onRequestClose={onClose}>
       <View style={styles.overlay}>
-        {/* Backdrop: Clicking outside anywhere on the screen closes the modal */}
+        {/* Backdrop: Clicking outside anywhere closes the modal */}
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
@@ -62,7 +63,6 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           accessibilityLabel="Dismiss modal by tapping outside"
         />
 
-        {/* Modal content wrapped strictly in SafeAreaView */}
         <SafeAreaView
           edges={['bottom']}
           pointerEvents="box-none"
@@ -71,9 +71,11 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerTitleGroup}>
-                <Text style={styles.headerSub}>INSPECTION VERIFICATION // GROUND TRUTH</Text>
+                <Text style={styles.headerSub}>
+                  {isServerReport ? 'Server Confirmed Inspection' : 'Outbox Draft (Local)'}
+                </Text>
                 <Text style={styles.headerTitle} numberOfLines={1}>
-                  ID: {serverId.slice(0, 16).toUpperCase()}
+                  Report #{serverId.slice(0, 12)}
                 </Text>
               </View>
               {/* Close Button */}
@@ -99,11 +101,11 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               keyboardShouldPersistTaps="handled">
               {/* Description Card */}
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>INSPECTION FINDINGS // DESCRIPTION</Text>
+                <Text style={styles.sectionLabel}>Inspection Notes</Text>
                 <Card style={styles.descriptionCard}>
                   <Text style={styles.descriptionText}>{description}</Text>
                   <View style={styles.timestampRow}>
-                    <Text style={styles.timestampLabel}>LOGGED AT:</Text>
+                    <Text style={styles.timestampLabel}>Date &amp; Time:</Text>
                     <Text style={styles.timestampValue}>{timestamp}</Text>
                   </View>
                 </Card>
@@ -113,9 +115,11 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               <View style={styles.section}>
                 <View style={styles.photoHeaderRow}>
                   <Text style={styles.sectionLabel}>
-                    VERIFIED PHOTOGRAPHS [{attachments.length} OF 5]
+                    Attached Photos ({attachments.length} of 5)
                   </Text>
-                  <Text style={styles.serverStorageTag}>SERVER DISK COMMITTED</Text>
+                  <Text style={styles.serverStorageTag}>
+                    {isServerReport ? 'Confirmed on server' : 'Saved on this phone'}
+                  </Text>
                 </View>
 
                 {attachments.map((att, idx) => {
@@ -131,34 +135,32 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                       />
                       <View style={styles.photoMeta}>
                         <View style={styles.photoMetaHeader}>
-                          <Text style={styles.photoIndex}>PHOTO {idx + 1}</Text>
+                          <Text style={styles.photoIndex}>Photo {idx + 1}</Text>
                           <Text style={styles.photoSize}>{sizeMB} MB</Text>
                         </View>
                         <Text style={styles.photoFileName} numberOfLines={1}>
                           {att.fileName}
                         </Text>
-                        <Text style={styles.ceilingCheck}>✓ VERIFIED &lt; 5.0 MB CEILING</Text>
+                        <Text style={styles.ceilingCheck}>✓ Under 5.0 MB ceiling</Text>
                       </View>
                     </Card>
                   );
                 })}
               </View>
 
-              {/* Technical Ground Truth Metadata */}
+              {/* Receipt Metadata */}
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>SERVER RECEIPT &amp; IDEMPOTENCY</Text>
+                <Text style={styles.sectionLabel}>Delivery Receipt</Text>
                 <Card style={styles.metaCard}>
                   <View style={styles.metaRow}>
-                    <Text style={styles.metaKey}>IDEMPOTENCY KEY:</Text>
+                    <Text style={styles.metaKey}>Client Report ID:</Text>
                     <Text style={styles.metaVal}>{(report as any).reportId || report.id}</Text>
                   </View>
                   <View style={styles.metaRow}>
-                    <Text style={styles.metaKey}>DISK STORAGE:</Text>
-                    <Text style={styles.metaVal}>/uploads/ (Local Ground Truth)</Text>
-                  </View>
-                  <View style={styles.metaRow}>
-                    <Text style={styles.metaKey}>INTEGRITY STATUS:</Text>
-                    <Text style={styles.metaSuccess}>VERIFIED DISK LANDING</Text>
+                    <Text style={styles.metaKey}>Storage Status:</Text>
+                    <Text style={styles.metaSuccess}>
+                      {isServerReport ? 'Saved on server disk' : 'Safe on device storage'}
+                    </Text>
                   </View>
                 </Card>
               </View>
@@ -166,7 +168,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               {/* Explicit Dismiss Button */}
               <View style={styles.footerAction}>
                 <Button
-                  title="CLOSE REPORT INSPECTION"
+                  title="Close Details"
                   variant="secondary"
                   onPress={onClose}
                 />
@@ -222,19 +224,19 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   headerSub: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
-    letterSpacing: 1,
+    fontSize: 11,
   },
   headerTitle: {
     ...typography.h3,
     color: colors.textPrimary,
     marginTop: 2,
-    letterSpacing: 0.5,
+    fontSize: 15,
   },
   closeButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderRadius: radii.sm,
     backgroundColor: colors.surfaceActive,
     borderWidth: 1,
@@ -246,7 +248,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   closeIcon: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textPrimary,
     fontWeight: 'bold',
   },
@@ -262,10 +264,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   sectionLabel: {
-    ...typography.micro,
-    color: colors.textMuted,
+    ...typography.bodySemibold,
+    color: colors.textPrimary,
     marginBottom: spacing.xs + 2,
-    letterSpacing: 0.8,
+    fontSize: 12,
   },
   descriptionCard: {
     padding: spacing.md,
@@ -284,11 +286,11 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   timestampLabel: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
   },
   timestampValue: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textPrimary,
   },
   photoHeaderRow: {
@@ -298,9 +300,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs + 2,
   },
   serverStorageTag: {
-    ...typography.micro,
-    color: colors.accentLight,
-    letterSpacing: 0.8,
+    ...typography.caption,
+    color: colors.emerald,
+    fontSize: 11,
+    fontWeight: '600',
   },
   photoCard: {
     marginBottom: spacing.md,
@@ -325,9 +328,10 @@ const styles = StyleSheet.create({
   photoIndex: {
     ...typography.bodySemibold,
     color: colors.textPrimary,
+    fontSize: 12,
   },
   photoSize: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textPrimary,
   },
   photoFileName: {
@@ -336,9 +340,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   ceilingCheck: {
-    ...typography.micro,
-    color: colors.accentLight,
-    letterSpacing: 0.5,
+    ...typography.caption,
+    color: colors.emerald,
+    fontSize: 10,
+    fontWeight: '600',
   },
   metaCard: {
     padding: spacing.md,
@@ -350,17 +355,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   metaKey: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
   },
   metaVal: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textPrimary,
   },
   metaSuccess: {
-    ...typography.micro,
-    color: colors.accentLight,
-    fontWeight: '700',
+    ...typography.caption,
+    color: colors.emerald,
+    fontWeight: '600',
   },
   footerAction: {
     marginTop: spacing.sm,

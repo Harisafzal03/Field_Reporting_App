@@ -16,19 +16,19 @@ export const NetworkPill: React.FC<NetworkPillProps> = ({
 }) => {
   const config = {
     online: {
-      label: '4G/WIFI · FAST',
-      dotColor: colors.textPrimary,
+      label: 'Connected',
+      dotColor: colors.emerald,
       bgColor: colors.surfaceElevated,
       borderColor: colors.borderHighlight,
     },
     '2g_weak': {
-      label: '2G LINK · SLOW',
+      label: '2G · Weak signal',
       dotColor: colors.amber,
       bgColor: colors.amberMuted,
       borderColor: 'rgba(234, 179, 8, 0.35)',
     },
     offline: {
-      label: 'OFFLINE · PAUSED',
+      label: 'Offline · Paused',
       dotColor: colors.red,
       bgColor: colors.redMuted,
       borderColor: 'rgba(239, 68, 68, 0.35)',
@@ -47,7 +47,7 @@ export const NetworkPill: React.FC<NetworkPillProps> = ({
         },
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Network mode: ${config.label}. Tap to toggle.`}>
+      accessibilityLabel={`Network mode: ${config.label}. Tap to inspect status.`}>
       <View style={[styles.dot, { backgroundColor: config.dotColor }]} />
       <Text style={styles.label}>{bandwidthLabel || config.label}</Text>
     </Pressable>
@@ -70,7 +70,8 @@ const styles = StyleSheet.create({
     marginRight: spacing.xs + 2,
   },
   label: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textPrimary,
+    fontSize: 11,
   },
 });

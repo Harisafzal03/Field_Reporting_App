@@ -1,97 +1,143 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Field Reports — Mobile Client (`app/`)
 
-# Getting Started
+React Native CLI (bare, TypeScript) field reporting application engineered for inspectors on remote infrastructure sites under intermittent 2G or zero connectivity.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## 1. Design Aesthetic & Architecture
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+The application implements a high-contrast **Monochrome Minimalist Utility** aesthetic inspired by the Google Stitch specifications (`3422698632221427343`):
+- **Color Palette**: Pitch black background (`#09090B`), elevated surface tiles (`#121214`), hairline slate borders (`#27272A`), crisp white primary typography (`#FAFAFA`), and amber/red indicators for connection/error states.
+- **Micro-Typography**: Strict uppercase tracked labels (`letterSpacing: 0.8–1.5`), monospaced technical tags, and clear state machine badges.
+- **Tactile Touch Targets**: Every interactive button and selector satisfies the minimum 48px touch boundary for outdoor fieldwork.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
 
-```sh
-# Using npm
-npm start
+## 2. Real Native Hardware Integration (Zero Dummy Data)
 
-# OR using Yarn
-yarn start
+The app operates exclusively with real device hardware with **zero preset mock reports**:
+
+### A. Hardware Camera & Gallery (`react-native-image-picker`)
+- **Native Gallery Picker**: Inspectors attach 1 to 5 real photos directly from their device photo library via `pickPhotosFromGallery`.
+- **Hardware Camera**: Direct camera capture with back-lens default and automatic photo storage.
+- **5.0 MB Destination Ceiling Enforcement**:
+  - Automatically downscales raw 18 MB camera photographs (`maxWidth: 2048, maxHeight: 2048, quality: 0.8`) to ~1.2–2.5 MB.
+  - Queries exact file byte counts directly from the hardware URI.
+  - Immediately rejects any attachment exceeding `5 * 1024 * 1024` bytes with a clear warning before queuing.
+  - Bounds check: Validates between 1 and 5 photos per report.
+
+### B. Hardware Network & Speed Monitor (`@react-native-community/netinfo`)
+- **Direct Hardware Telemetry (Android & iOS)**:
+  - Subscribes to live OS network state events via `subscribeToHardwareNetwork`.
+  - Reads hardware link speed directly on Android (`details.linkSpeed` in Mbps/Kbps) and cellular technology standards.
+- **Real Bandwidth Formatting in KBPS & MBPS**:
+  - `2G · 96 KBPS` (Cellular EDGE/GPRS telemetry)
+  - `3G · 384 KBPS` (Cellular UMTS/HSPA telemetry)
+  - `4G · 25 MBPS` (Cellular LTE broadband telemetry)
+  - `5G · 150 MBPS` (Cellular 5G NR ultra-broadband telemetry)
+  - `WIFI · 72 MBPS` (Real hardware WiFi chip link speed)
+  - `OFFLINE · 0 KBPS` (Airplane mode or zero signal)
+
+---
+
+## 3. Unattended Delivery Queue & Ground Truth
+
+### A. Unattended Delivery Engine
+- When an inspector queues a report, it is saved locally to state and disk.
+- When network signal is available, the background queue worker automatically starts the upload without requiring user interaction.
+- Uses `XMLHttpRequest` multipart upload with `upload.onprogress` to stream real progress (byte counter, photo index, percent).
+- Includes the `Idempotency-Key: <reportId>` header so duplicate transmissions never result in duplicate landings on the server.
+- If signal drops mid-transmission, the job automatically pauses and resumes safely once signal returns.
+
+### B. Ground Truth Server Review
+- The **Server Review** tab executes a direct query (`GET /reports`) against the backend Express database.
+- It never reads back from local optimistic cache. If the server has 0 reports, it honestly displays `SERVER DATABASE EMPTY`. Once a report lands, it displays the verified server report ID and committed timestamp.
+
+### C. Blast Radius & Chaos Controls (⚡ Header Modal)
+- **Blast Radius Control**:
+  - `Clear Local Queue Only`: Removes local outbox jobs and temporary drafts without touching the server.
+  - `Complete System Wipe`: Clears local device outbox AND executes backend `DELETE /reports` database purge to factory zero.
+- **Evaluator Chaos Simulator**:
+  - Injects live artificial 2G latency (e.g. 3000ms delay).
+  - Drops TCP socket connections mid-stream.
+  - Simulates HTTP 500 server rejection errors.
+
+---
+
+## 4. Directory Structure
+
+```text
+app/
+├── android/            # Bare Android native project (permissions configured)
+├── ios/                # Bare iOS native project
+├── src/
+│   ├── theme/          # Monochrome utility design tokens
+│   │   ├── tokens.ts   # Hairline borders, pitch black colors, micro-typography
+│   │   └── index.ts
+│   ├── domain/         # Core TypeScript domain models
+│   │   └── types.ts    # Report, Attachment, UploadProgress, ChaosConfig, BlastRadius
+│   ├── components/     # High-contrast modular UI components
+│   │   ├── Button.tsx       # Tactile 48px touch target button
+│   │   ├── Card.tsx         # Hairline-bordered slate container
+│   │   ├── Header.tsx       # Title, live bandwidth pill, and chaos button
+│   │   ├── NetworkPill.tsx  # Dynamic hardware speed chip (Kbps / Mbps)
+│   │   ├── ProgressBar.tsx  # Live byte and attachment counter
+│   │   ├── StatusBadge.tsx  # State machine chip (In Queue, Uploading, Delivered, Failed)
+│   │   └── index.ts
+│   ├── screens/        # Screen implementations
+│   │   ├── ComposeScreen.tsx    # Compose findings, pick 1–5 gallery/camera photos
+│   │   ├── OutboxScreen.tsx     # In-flight queue, live byte progress, retry actions
+│   │   ├── ReviewScreen.tsx     # Ground-truth server review (GET /reports)
+│   │   ├── ChaosResetModal.tsx  # Blast radius selector and chaos toggles
+│   │   └── index.ts
+│   └── services/       # Native device & API client services
+│       ├── api.ts          # Multipart upload client with Idempotency-Key
+│       ├── imagePicker.ts  # Hardware gallery and camera selection with 5MB ceiling
+│       └── network.ts      # NetInfo hardware speed listener in Kbps / Mbps
+├── App.tsx             # Root application shell & unattended queue worker
+└── package.json
 ```
 
-## Step 2: Build and run your app
+---
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## 5. Verification Commands
 
-### Android
+Run the test and verification suite from the `app/` folder:
 
-```sh
-# Using npm
-npm run android
+```bash
+# Typecheck TypeScript definitions
+yarn typecheck
 
-# OR using Yarn
-yarn android
+# Run ESLint linter
+yarn lint
+
+# Run Jest unit tests
+yarn test
+
+# Run complete verification suite
+yarn verify
 ```
 
-### iOS
+---
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+## 6. Running Locally
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+### Starting the Backend Server
+```bash
+yarn --cwd server start
 ```
 
-Then, and every time you update your native dependencies, run:
+### Running on Physical Android Device
+If connected via USB:
+```bash
+# Reverse port 3000 to physical device
+$HOME/Library/Android/sdk/platform-tools/adb reverse tcp:3000 tcp:3000
 
-```sh
-bundle exec pod install
+# Launch on connected device
+yarn --cwd app android
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+### Starting Metro Bundler
+```bash
+yarn --cwd app start
 ```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.

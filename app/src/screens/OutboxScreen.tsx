@@ -43,71 +43,71 @@ export const OutboxScreen: React.FC<OutboxScreenProps> = ({
         accessibilityLabel="Inspect report findings and photos">
         <Card style={styles.card} highlighted={isUploading}>
           <View style={styles.cardHeader}>
-            <Text style={styles.reportId}>REP-{item.id.slice(0, 8).toUpperCase()}</Text>
+            <Text style={styles.reportId}>Report #{item.id.slice(0, 8)}</Text>
             <StatusBadge status={item.status} retryCount={item.retryCount} />
           </View>
 
-        <Text style={styles.description} numberOfLines={2}>
-          {item.description}
-        </Text>
-
-        <View style={styles.metaRow}>
-          <Text style={styles.metaText}>
-            ATTACHMENTS: {item.attachments.length} ({sizeInMB} MB)
+          <Text style={styles.description} numberOfLines={2}>
+            {item.description}
           </Text>
-          <Text style={styles.timeText}>
-            {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </View>
 
-        {isUploading && item.progress ? (
-          <ProgressBar progress={item.progress} />
-        ) : null}
-
-        {item.status === 'in_queue' ? (
-          <View style={styles.queueNoticeContainer}>
-            <View style={styles.offlineNotice}>
-              <Text style={styles.noticeText}>
-                {item.retryCount > 0
-                  ? `● UNATTENDED RETRY: Attempt #${item.retryCount} active. Report safe on device disk.`
-                  : '● DISK SAFE: Queued on device storage. Will deliver unattended once signal is available.'}
-              </Text>
-            </View>
-            {item.errorMessage ? (
-              <View style={styles.retryBanner}>
-                <Text style={styles.retryBannerText} numberOfLines={2}>
-                  {item.errorMessage}
-                </Text>
-                {onRetryReport ? (
-                  <Pressable
-                    onPress={() => onRetryReport(item.id)}
-                    style={styles.retryNowButton}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Retry report upload immediately">
-                    <Text style={styles.retryNowText}>RETRY NOW</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-
-        {isFailed ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>
-              {item.errorMessage || 'Link failure: Connection dropped mid-flight.'}
+          <View style={styles.metaRow}>
+            <Text style={styles.metaText}>
+              {item.attachments.length} {item.attachments.length === 1 ? 'photo' : 'photos'} ({sizeInMB} MB)
             </Text>
-            {onRetryReport ? (
-              <Pressable
-                onPress={() => onRetryReport(item.id)}
-                style={styles.retryButton}
-                accessibilityRole="button">
-                <Text style={styles.retryText}>RETRY</Text>
-              </Pressable>
-            ) : null}
+            <Text style={styles.timeText}>
+              {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
           </View>
-        ) : null}
+
+          {isUploading && item.progress ? (
+            <ProgressBar progress={item.progress} />
+          ) : null}
+
+          {item.status === 'in_queue' ? (
+            <View style={styles.queueNoticeContainer}>
+              <View style={styles.offlineNotice}>
+                <Text style={styles.noticeText}>
+                  {item.retryCount > 0
+                    ? `Safe on this phone. Automatic retry #${item.retryCount} in progress.`
+                    : 'Safe on this phone. Delivers automatically once signal returns.'}
+                </Text>
+              </View>
+              {item.errorMessage ? (
+                <View style={styles.retryBanner}>
+                  <Text style={styles.retryBannerText} numberOfLines={2}>
+                    {item.errorMessage}
+                  </Text>
+                  {onRetryReport ? (
+                    <Pressable
+                      onPress={() => onRetryReport(item.id)}
+                      style={styles.retryNowButton}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Retry report upload immediately">
+                      <Text style={styles.retryNowText}>Retry Now</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {isFailed ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>
+                {item.errorMessage || 'Upload stopped. Action required.'}
+              </Text>
+              {onRetryReport ? (
+                <Pressable
+                  onPress={() => onRetryReport(item.id)}
+                  style={styles.retryButton}
+                  accessibilityRole="button">
+                  <Text style={styles.retryText}>Retry</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
         </Card>
       </Pressable>
     );
@@ -115,28 +115,32 @@ export const OutboxScreen: React.FC<OutboxScreenProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Minimalist Segmented Tabs */}
+      {/* Segmented Tabs */}
       <View style={styles.tabsRow}>
         <Pressable
           style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
-          onPress={() => setActiveTab('pending')}>
+          onPress={() => setActiveTab('pending')}
+          accessibilityRole="tab"
+          accessibilityLabel="Pending outbox reports tab">
           <Text
             style={[
               styles.tabText,
               activeTab === 'pending' && styles.activeTabText,
             ]}>
-            OUTBOX // PENDING ({pendingReports.length})
+            Outbox ({pendingReports.length})
           </Text>
         </Pressable>
         <Pressable
           style={[styles.tab, activeTab === 'delivered' && styles.activeTab]}
-          onPress={() => setActiveTab('delivered')}>
+          onPress={() => setActiveTab('delivered')}
+          accessibilityRole="tab"
+          accessibilityLabel="Delivered reports tab">
           <Text
             style={[
               styles.tabText,
               activeTab === 'delivered' && styles.activeTabText,
             ]}>
-            DELIVERED ({deliveredReports.length})
+            Delivered ({deliveredReports.length})
           </Text>
         </Pressable>
       </View>
@@ -148,13 +152,12 @@ export const OutboxScreen: React.FC<OutboxScreenProps> = ({
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>[ - ]</Text>
             <Text style={styles.emptyTitle}>
-              {activeTab === 'pending' ? 'OUTBOX CLEAR' : 'NO DELIVERIES RECORDED'}
+              {activeTab === 'pending' ? 'Outbox is Clear' : 'No Delivered Reports'}
             </Text>
             <Text style={styles.emptySubtitle}>
               {activeTab === 'pending'
-                ? 'All field reports have reached destination.'
+                ? 'All field reports have been delivered to the server.'
                 : 'Reports confirmed by the server will appear here.'}
             </Text>
           </View>
@@ -198,8 +201,9 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
   },
   tabText: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
+    fontWeight: '600',
   },
   activeTabText: {
     color: colors.textPrimary,
@@ -218,9 +222,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   reportId: {
-    ...typography.mono,
-    color: colors.textMuted,
-    fontSize: 11,
+    ...typography.bodySemibold,
+    color: colors.textSecondary,
+    fontSize: 12,
   },
   description: {
     ...typography.body,
@@ -233,11 +237,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   metaText: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   timeText: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
   },
   queueNoticeContainer: {
@@ -251,11 +255,11 @@ const styles = StyleSheet.create({
   noticeText: {
     ...typography.caption,
     color: colors.amber,
-    fontSize: 11,
+    fontSize: 12,
   },
   retryBanner: {
     marginTop: spacing.xs,
-    padding: spacing.xs + 2,
+    padding: spacing.xs + 4,
     backgroundColor: 'rgba(234, 179, 8, 0.08)',
     borderRadius: radii.xs,
     borderWidth: 1,
@@ -278,10 +282,10 @@ const styles = StyleSheet.create({
     borderRadius: radii.xs,
   },
   retryNowText: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.accentDark,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   errorContainer: {
     marginTop: spacing.sm,
@@ -299,6 +303,7 @@ const styles = StyleSheet.create({
     color: colors.red,
     flex: 1,
     marginRight: spacing.sm,
+    fontSize: 12,
   },
   retryButton: {
     backgroundColor: colors.red,
@@ -307,30 +312,25 @@ const styles = StyleSheet.create({
     borderRadius: radii.xs,
   },
   retryText: {
-    ...typography.micro,
+    ...typography.caption,
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxxl * 2,
   },
-  emptyIcon: {
-    ...typography.mono,
-    fontSize: 24,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
   emptyTitle: {
     ...typography.h3,
     color: colors.textPrimary,
-    letterSpacing: 1,
   },
   emptySubtitle: {
-    ...typography.caption,
+    ...typography.body,
     color: colors.textMuted,
     marginTop: spacing.xs,
     textAlign: 'center',
-    maxWidth: 260,
+    maxWidth: 280,
+    fontSize: 12,
   },
 });

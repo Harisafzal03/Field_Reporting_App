@@ -42,14 +42,14 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
   const handleConfirmReset = () => {
     const isFull = selectedRadius === 'full_system_wipe';
     Alert.alert(
-      isFull ? 'CONFIRM COMPLETE SYSTEM WIPE' : 'CONFIRM LOCAL QUEUE RESET',
+      isFull ? 'Confirm Full System Wipe' : 'Confirm Local Queue Reset',
       isFull
-        ? 'DANGER: This will wipe all device outbox reports AND permanently purge the server database and all uploaded photographs from disk. Continue?'
-        : 'This will clear all pending in-flight reports and drafts on this device. Server records remain untouched. Continue?',
+        ? 'This will clear all outbox reports on this phone AND permanently purge all server database records and uploaded photos. Continue?'
+        : 'This will clear pending reports on this phone only. Server records remain untouched. Continue?',
       [
-        { text: 'CANCEL', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: isFull ? 'PURGE ENTIRE SYSTEM' : 'WIPE LOCAL ONLY',
+          text: isFull ? 'Purge Entire System' : 'Wipe Local Only',
           style: 'destructive',
           onPress: () => onExecuteReset(selectedRadius),
         },
@@ -78,10 +78,10 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
   };
 
   const activeChaos: string[] = [];
-  if (chaosConfig.latencyMs > 0) activeChaos.push(`+${chaosConfig.latencyMs}ms LATENCY`);
-  if (chaosConfig.dropConnection) activeChaos.push('SOCKET DROP');
-  if (chaosConfig.simulate500) activeChaos.push('HTTP 500');
-  if (chaosConfig.hangRequest) activeChaos.push('HANG REQUEST');
+  if (chaosConfig.latencyMs > 0) activeChaos.push(`+${chaosConfig.latencyMs}ms delay`);
+  if (chaosConfig.dropConnection) activeChaos.push('Connection drop');
+  if (chaosConfig.simulate500) activeChaos.push('HTTP 500 error');
+  if (chaosConfig.hangRequest) activeChaos.push('Gateway timeout');
   const isHealthy = activeChaos.length === 0;
 
   return (
@@ -91,7 +91,7 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
       transparent={true}
       onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        {/* Backdrop: Clicking outside anywhere on the darkened screen closes the modal */}
+        {/* Backdrop */}
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
@@ -99,7 +99,6 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
           accessibilityLabel="Close modal by tapping outside"
         />
 
-        {/* Sheet layer: Elevated above backdrop with Safe Area protection */}
         <SafeAreaView
           edges={['bottom']}
           pointerEvents="box-none"
@@ -111,8 +110,8 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerTitleGroup}>
-                <Text style={styles.title}>CHAOS // SYSTEM PROTOCOLS</Text>
-                <Text style={styles.subtitle}>Fault injection &amp; blast radius controls</Text>
+                <Text style={styles.title}>Diagnostics &amp; Fault Simulation</Text>
+                <Text style={styles.subtitle}>Test network faults and system resets</Text>
               </View>
               <Pressable
                 onPress={onClose}
@@ -130,9 +129,9 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
               keyboardShouldPersistTaps="handled">
               {/* Section 1: Reset Blast Radius */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>DELIBERATE RESET // BLAST RADIUS</Text>
+                <Text style={styles.sectionTitle}>Reset Boundaries</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Choose the boundary blast radius before executing reset:
+                  Select the scope of data to clear:
                 </Text>
 
                 {/* Option 1: Local Queue Only */}
@@ -143,6 +142,7 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                     selectedRadius === 'local_queue_only' && styles.selectedOption,
                   ]}
                   accessibilityRole="radio"
+                  accessibilityLabel="Radio Local Queue Only"
                   accessibilityState={{ selected: selectedRadius === 'local_queue_only' }}>
                   <View style={styles.radioRow}>
                     <View style={styles.radioOuter}>
@@ -151,9 +151,9 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                       ) : null}
                     </View>
                     <View style={styles.optionContent}>
-                      <Text style={styles.optionTitle}>LOCAL QUEUE ONLY</Text>
+                      <Text style={styles.optionTitle}>Local Queue Only</Text>
                       <Text style={styles.optionDesc}>
-                        Wipes in-flight queue, drafts, and temp cache on this device. Verified server records remain untouched.
+                        Wipes in-flight queue and drafts on this phone. Server records remain untouched.
                       </Text>
                     </View>
                   </View>
@@ -168,6 +168,7 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                     selectedRadius === 'full_system_wipe' && styles.selectedDangerOption,
                   ]}
                   accessibilityRole="radio"
+                  accessibilityLabel="Radio Full System Wipe"
                   accessibilityState={{ selected: selectedRadius === 'full_system_wipe' }}>
                   <View style={styles.radioRow}>
                     <View style={[styles.radioOuter, styles.radioDangerOuter]}>
@@ -177,10 +178,10 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                     </View>
                     <View style={styles.optionContent}>
                       <Text style={[styles.optionTitle, styles.dangerTitle]}>
-                        FULL SYSTEM WIPE (LOCAL + SERVER DISK)
+                        Full System Wipe (Local + Server)
                       </Text>
                       <Text style={styles.optionDesc}>
-                        Wipes local device queue AND issues HTTP DELETE /reports to purge all server records and delete uploaded images from disk.
+                        Wipes local phone outbox AND issues HTTP DELETE /reports to purge all server records and stored photos.
                       </Text>
                     </View>
                   </View>
@@ -189,8 +190,8 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                 <Button
                   title={
                     selectedRadius === 'full_system_wipe'
-                      ? 'EXECUTE COMPLETE SYSTEM WIPE'
-                      : 'EXECUTE LOCAL QUEUE RESET'
+                      ? 'Execute Full System Wipe'
+                      : 'Execute Local Queue Reset'
                   }
                   variant={selectedRadius === 'full_system_wipe' ? 'danger' : 'secondary'}
                   onPress={handleConfirmReset}
@@ -198,17 +199,17 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                 />
               </View>
 
-              {/* Section 2: Evaluator Quick Test Presets */}
+              {/* Section 2: Preset Fault Conditions */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>EVALUATOR TEST CASES // 1-TAP PRESETS</Text>
+                <Text style={styles.sectionTitle}>Preset Test Conditions</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Select a test case to automatically simulate field conditions:
+                  Simulate field connectivity conditions:
                 </Text>
 
                 {/* Status Bar */}
                 <View style={[styles.statusBanner, isHealthy ? styles.statusHealthy : styles.statusChaos]}>
                   <Text style={[styles.statusBannerText, isHealthy ? styles.textHealthy : styles.textChaos]}>
-                    CURRENT LINK: {isHealthy ? '● HEALTHY (NO FAULTS)' : `⚡ FAULT INJECTED: [${activeChaos.join(' · ')}]`}
+                    Link condition: {isHealthy ? 'Healthy (no faults injected)' : `Fault active: ${activeChaos.join(', ')}`}
                   </Text>
                 </View>
 
@@ -216,63 +217,68 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                   <Pressable
                     onPress={() => applyPreset('latency')}
                     style={[styles.presetButton, chaosConfig.latencyMs > 0 && styles.activePresetButton]}
-                    accessibilityRole="button">
-                    <Text style={styles.presetButtonTitle}>TEST CASE 1: 2G LATENCY</Text>
-                    <Text style={styles.presetButtonDesc}>+3000ms delay per upload</Text>
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Case 1 2G Latency Preset">
+                    <Text style={styles.presetButtonTitle}>Test 1: 2G Latency (+3000ms delay)</Text>
+                    <Text style={styles.presetButtonDesc}>Simulates slow 2G cell connection</Text>
                   </Pressable>
 
                   <Pressable
                     onPress={() => applyPreset('drop')}
                     style={[styles.presetButton, chaosConfig.dropConnection && styles.activeDangerPreset]}
-                    accessibilityRole="button">
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Case 2 Drop Socket Preset">
                     <Text style={[styles.presetButtonTitle, chaosConfig.dropConnection && styles.textRed]}>
-                      TEST CASE 2: DROP SOCKET
+                      Test 2: Drop Connection (Sever TCP stream)
                     </Text>
-                    <Text style={styles.presetButtonDesc}>Sever connection mid-flight</Text>
+                    <Text style={styles.presetButtonDesc}>Simulates signal drop mid-flight</Text>
                   </Pressable>
 
                   <Pressable
                     onPress={() => applyPreset('error500')}
                     style={[styles.presetButton, chaosConfig.simulate500 && styles.activeDangerPreset]}
-                    accessibilityRole="button">
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Case 3 HTTP 500 Error Preset">
                     <Text style={[styles.presetButtonTitle, chaosConfig.simulate500 && styles.textRed]}>
-                      TEST CASE 3: HTTP 500 ERROR
+                      Test 3: HTTP 500 Error (Server failure)
                     </Text>
-                    <Text style={styles.presetButtonDesc}>Simulate backend flapping</Text>
+                    <Text style={styles.presetButtonDesc}>Simulates server side errors</Text>
                   </Pressable>
 
                   <Pressable
                     onPress={() => applyPreset('hang')}
                     style={[styles.presetButton, chaosConfig.hangRequest && styles.activeDangerPreset]}
-                    accessibilityRole="button">
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Case 4 Hang Timeout Preset">
                     <Text style={[styles.presetButtonTitle, chaosConfig.hangRequest && styles.textRed]}>
-                      TEST CASE 4: HANG / TIMEOUT
+                      Test 4: Hang / Timeout (Unresponsive)
                     </Text>
-                    <Text style={styles.presetButtonDesc}>Simulate frozen gateway</Text>
+                    <Text style={styles.presetButtonDesc}>Simulates frozen gateway</Text>
                   </Pressable>
 
                   <Pressable
                     onPress={() => applyPreset('clean')}
                     style={[styles.presetButton, styles.restorePresetButton, isHealthy && styles.activeRestorePreset]}
-                    accessibilityRole="button">
-                    <Text style={styles.restorePresetText}>✓ RESTORE HEALTHY NETWORK</Text>
-                    <Text style={styles.presetButtonDesc}>Clear all chaos &amp; flush outbox queue</Text>
+                    accessibilityRole="button"
+                    accessibilityLabel="Restore Healthy Network Preset">
+                    <Text style={styles.restorePresetText}>✓ Restore Healthy Network</Text>
+                    <Text style={styles.presetButtonDesc}>Clear all simulated faults</Text>
                   </Pressable>
                 </View>
               </View>
 
               {/* Section 3: Fine-grained Chaos Switches */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>MANUAL FAULT CONTROLS // SWITCHES</Text>
+                <Text style={styles.sectionTitle}>Manual Fault Switches</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Toggle individual backend failure conditions:
+                  Toggle individual backend conditions:
                 </Text>
 
                 <Card style={styles.chaosCard}>
                   <View style={styles.switchRow}>
                     <View style={styles.switchInfo}>
-                      <Text style={styles.switchLabel}>2G Latency Simulation</Text>
-                      <Text style={styles.switchSublabel}>Adds 3000ms delay to POST /reports</Text>
+                      <Text style={styles.switchLabel}>2G Latency (+3000ms)</Text>
+                      <Text style={styles.switchSublabel}>Delays POST /reports response</Text>
                     </View>
                     <Switch
                       value={chaosConfig.latencyMs > 0}
@@ -291,8 +297,8 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
 
                   <View style={styles.switchRow}>
                     <View style={styles.switchInfo}>
-                      <Text style={styles.switchLabel}>Drop Socket Mid-Upload</Text>
-                      <Text style={styles.switchSublabel}>Abruptly sever TCP stream on POST /reports</Text>
+                      <Text style={styles.switchLabel}>Drop Connection Mid-Upload</Text>
+                      <Text style={styles.switchSublabel}>Abruptly closes socket during upload</Text>
                     </View>
                     <Switch
                       value={chaosConfig.dropConnection}
@@ -307,7 +313,7 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                   <View style={styles.switchRow}>
                     <View style={styles.switchInfo}>
                       <Text style={styles.switchLabel}>Return HTTP 500 Error</Text>
-                      <Text style={styles.switchSublabel}>Server rejects POST /reports with 500 error</Text>
+                      <Text style={styles.switchSublabel}>Server responds with HTTP 500</Text>
                     </View>
                     <Switch
                       value={chaosConfig.simulate500}
@@ -322,7 +328,7 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                   <View style={styles.switchRow}>
                     <View style={styles.switchInfo}>
                       <Text style={styles.switchLabel}>Hang Request / Gateway Timeout</Text>
-                      <Text style={styles.switchSublabel}>Never answer POST /reports request</Text>
+                      <Text style={styles.switchSublabel}>Never replies to upload request</Text>
                     </View>
                     <Switch
                       value={chaosConfig.hangRequest}
@@ -382,7 +388,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h3,
     color: colors.textPrimary,
-    letterSpacing: 1,
+    fontSize: 15,
   },
   subtitle: {
     ...typography.caption,
@@ -416,9 +422,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   sectionTitle: {
-    ...typography.micro,
+    ...typography.bodySemibold,
     color: colors.textPrimary,
-    letterSpacing: 1,
+    fontSize: 13,
   },
   sectionSubtitle: {
     ...typography.caption,
@@ -475,8 +481,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionTitle: {
-    ...typography.micro,
+    ...typography.bodySemibold,
     color: colors.textPrimary,
+    fontSize: 13,
   },
   dangerTitle: {
     color: colors.red,
@@ -520,7 +527,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xs,
   },
   statusBanner: {
-    paddingVertical: spacing.xs + 2,
+    paddingVertical: spacing.xs + 3,
     paddingHorizontal: spacing.md,
     borderRadius: radii.xs,
     borderWidth: 1,
@@ -535,15 +542,16 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(239, 68, 68, 0.4)',
   },
   statusBannerText: {
-    ...typography.micro,
-    letterSpacing: 0.8,
+    ...typography.caption,
+    fontSize: 11,
   },
   textHealthy: {
     color: colors.emerald,
+    fontWeight: '600',
   },
   textChaos: {
     color: colors.red,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   presetGrid: {
     gap: spacing.xs + 2,
@@ -574,15 +582,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(34, 197, 94, 0.15)',
   },
   presetButtonTitle: {
-    ...typography.micro,
+    ...typography.bodySemibold,
     color: colors.textPrimary,
-    letterSpacing: 0.8,
+    fontSize: 12,
   },
   restorePresetText: {
-    ...typography.micro,
+    ...typography.bodySemibold,
     color: colors.emerald,
-    fontWeight: 'bold',
-    letterSpacing: 0.8,
+    fontSize: 12,
   },
   textRed: {
     color: colors.red,

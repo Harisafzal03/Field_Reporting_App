@@ -10,6 +10,22 @@ const CANDIDATE_HOSTS =
 
 const DEFAULT_HOST = CANDIDATE_HOSTS[0];
 
+export class ApiError extends Error {
+  status: number;
+  isFatal: boolean;
+  serverError?: string;
+
+  constructor(status: number, message: string, serverError?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.serverError = serverError;
+    // Client errors (400 Bad Request, 413 Payload Too Large, 401, 403, 404, 422)
+    // are non-transient and will not succeed on automated retries.
+    this.isFatal = status >= 400 && status < 500;
+  }
+}
+
 export class ApiClient {
   private baseUrl: string;
 
@@ -71,7 +87,7 @@ export class ApiClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Server returned status ${response.status}`);
+      throw new ApiError(response.status, `Server returned status ${response.status}`);
     }
 
     const data = await response.json();
@@ -123,16 +139,23 @@ export class ApiClient {
             resolve({ ok: true, reportId });
           }
         } else {
-          reject(new Error(`Server error HTTP ${xhr.status}: ${xhr.statusText}`));
+          let serverMsg = '';
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            serverMsg = parsed.error || parsed.message || '';
+          } catch {}
+
+          const errorText = serverMsg || `Server error HTTP ${xhr.status}: ${xhr.statusText}`;
+          reject(new ApiError(xhr.status, errorText, serverMsg));
         }
       };
 
       xhr.onerror = () => {
-        reject(new Error('Network request failed or socket connection dropped.'));
+        reject(new ApiError(0, 'Connection dropped or network unreachable. Safe on this phone.'));
       };
 
       xhr.ontimeout = () => {
-        reject(new Error('Request timed out.'));
+        reject(new ApiError(0, 'Upload timed out. Safe on this phone.'));
       };
 
       xhr.send(formData);

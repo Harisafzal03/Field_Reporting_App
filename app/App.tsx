@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -16,6 +16,8 @@ import {
   Report,
   ServerReport,
 } from './src/domain/types';
+import { draftStore } from './src/queue/draftStore';
+import { queueStore } from './src/queue/queueStore';
 import {
   ChaosResetModal,
   ComposeScreen,
@@ -26,8 +28,8 @@ import { api } from './src/services/api';
 import {
   HardwareNetworkStatus,
   subscribeToHardwareNetwork,
-  triggerSpeedTest,
 } from './src/services/network';
+import { uploadEngine } from './src/services/uploadEngine';
 import { colors, radii, spacing, typography } from './src/theme';
 
 type Tab = 'compose' | 'outbox' | 'review';
@@ -37,7 +39,7 @@ function App() {
   const [hardwareNetwork, setHardwareNetwork] = useState<HardwareNetworkStatus>({
     speedCategory: 'online',
     connectionType: 'unknown' as any,
-    bandwidthLabel: 'INITIALIZING LINK...',
+    bandwidthLabel: 'Checking connection...',
     isConnected: true,
     isInternetReachable: true,
   });
@@ -45,7 +47,7 @@ function App() {
   const [serverReports, setServerReports] = useState<ServerReport[]>([]);
   const [serverLoading, setServerLoading] = useState(false);
 
-  // In-flight and local reports queue state — starts strictly empty with ZERO mock data
+  // Persistent queue hydrated from device disk (AsyncStorage)
   const [reports, setReports] = useState<Report[]>([]);
 
   const [chaosConfig, setChaosConfig] = useState<ChaosConfig>({
@@ -54,24 +56,6 @@ function App() {
     simulate500: false,
     hangRequest: false,
   });
-
-  const isUploadingRef = useRef(false);
-  const hardwareNetworkRef = useRef(hardwareNetwork);
-  hardwareNetworkRef.current = hardwareNetwork;
-
-  // Real Hardware Network Listener (Android and iOS)
-  useEffect(() => {
-    // Attempt auto-detect active server host in background
-    api.resolveActiveBaseUrl().catch(() => {});
-
-    const unsubscribe = subscribeToHardwareNetwork(status => {
-      setHardwareNetwork(status);
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
 
   // Sync with backend database (GET /reports)
   const fetchServerReports = useCallback(async () => {
@@ -86,172 +70,54 @@ function App() {
     }
   }, []);
 
+  // Initialize queue persistence and upload engine
   useEffect(() => {
-    let isMounted = true;
-    api
-      .getReports()
-      .then(data => {
-        if (isMounted) {
-          setServerReports(data);
-        }
-      })
-      .catch(() => {});
+    // Attempt auto-detect active server host in background
+    api.resolveActiveBaseUrl().catch(() => {});
+
+    // 1. Hydrate queue from disk on launch
+    queueStore.loadQueueFromDisk();
+
+    // 2. Subscribe to reactive queue changes
+    const unsubQueue = queueStore.subscribe(updatedReports => {
+      setReports(updatedReports);
+    });
+
+    // 3. Start headless upload engine ticker
+    uploadEngine.start();
+
+    // 4. Refresh ground truth when upload delivers
+    const unsubDelivery = uploadEngine.onDelivery(() => {
+      fetchServerReports();
+    });
+
+    // 5. Subscribe to hardware network changes
+    const unsubNetwork = subscribeToHardwareNetwork(status => {
+      setHardwareNetwork(status);
+      uploadEngine.setOffline(status.speedCategory === 'offline');
+    });
+
+    // 6. Fetch initial server reports
+    fetchServerReports();
 
     return () => {
-      isMounted = false;
+      unsubQueue();
+      unsubDelivery();
+      unsubNetwork();
+      uploadEngine.stop();
     };
-  }, []);
+  }, [fetchServerReports]);
 
-  // Real Unattended Queue Worker Engine
-  // Automatically uploads in_queue reports over the hardware network link
-  useEffect(() => {
-    if (hardwareNetwork.speedCategory === 'offline') {
-      return;
-    }
-
-    const now = Date.now();
-    const nextPending = reports.find(
-      r => r.status === 'in_queue' && (!r.nextRetryAt || r.nextRetryAt <= now),
-    );
-    if (!nextPending || isUploadingRef.current) {
-      return;
-    }
-
-    isUploadingRef.current = true;
-    const targetId = nextPending.id;
-    const totalBytes = nextPending.attachments.reduce((acc, a) => acc + a.fileSizeBytes, 0);
-
-    // Transition to uploading
-    setReports(prev =>
-      prev.map(r =>
-        r.id === targetId
-          ? {
-              ...r,
-              status: 'uploading',
-              progress: {
-                bytesSent: 0,
-                totalBytes,
-                currentAttachmentIndex: 0,
-                totalAttachments: nextPending.attachments.length,
-                percent: 0,
-              },
-            }
-          : r,
-      ),
-    );
-
-    let isAborted = false;
-
-    // Call real API upload via XMLHttpRequest with hardware progress updates
-    api
-      .submitReport(
-        nextPending.id,
-        nextPending.description,
-        nextPending.attachments,
-        percent => {
-          if (isAborted) return;
-          const currentPercent = Math.min(Math.round(percent), 100);
-          const bytesSent = Math.round((currentPercent / 100) * totalBytes);
-          const currentAttachmentIndex = Math.min(
-            nextPending.attachments.length - 1,
-            Math.floor((currentPercent / 100) * nextPending.attachments.length),
-          );
-
-          setReports(prev =>
-            prev.map(r =>
-              r.id === targetId
-                ? {
-                    ...r,
-                    progress: {
-                      bytesSent,
-                      totalBytes,
-                      currentAttachmentIndex,
-                      totalAttachments: nextPending.attachments.length,
-                      percent: currentPercent,
-                    },
-                  }
-                : r,
-            ),
-          );
-        },
-      )
-      .then(res => {
-        isUploadingRef.current = false;
-        // Mark report as delivered
-        setReports(prev =>
-          prev.map(r =>
-            r.id === targetId
-              ? {
-                  ...r,
-                  status: 'delivered',
-                  progress: undefined,
-                  serverReportId: res.reportId,
-                  errorMessage: undefined,
-                  nextRetryAt: undefined,
-                  updatedAt: Date.now(),
-                }
-              : r,
-          ),
-        );
-        // Refresh ground truth from server
-        fetchServerReports();
-      })
-      .catch((err: any) => {
-        isUploadingRef.current = false;
-        // Resiliency requirement: When connection drops or latency occurs mid-flight,
-        // NEVER abandon the report or leave it dead. Retain in queue (status: 'in_queue')
-        // and schedule automatic unattended retry in 3.5 seconds.
-        setReports(prev =>
-          prev.map(r =>
-            r.id === targetId
-              ? {
-                  ...r,
-                  status: 'in_queue',
-                  retryCount: (r.retryCount || 0) + 1,
-                  nextRetryAt: Date.now() + 3500,
-                  progress: undefined,
-                  errorMessage:
-                    err.message ||
-                    'Connection dropped mid-flight · Auto-retrying unattended...',
-                  updatedAt: Date.now(),
-                }
-              : r,
-          ),
-        );
-      });
-
-    return () => {
-      isAborted = true;
-    };
-  }, [hardwareNetwork.speedCategory, reports, fetchServerReports]);
-
-  // Unattended auto-retry ticker: Checks every second for scheduled retries
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (isUploadingRef.current) return;
-      const now = Date.now();
-      setReports(prev => {
-        const hasDue = prev.some(
-          r => r.status === 'in_queue' && r.nextRetryAt && r.nextRetryAt <= now,
-        );
-        return hasDue ? [...prev] : prev;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // Network toggle action (tap network pill in header to trigger live speed test)
+  // Network pill tap action
   const handleToggleNetwork = () => {
-    triggerSpeedTest();
     Alert.alert(
-      'MEASURING LIVE NETWORK SPEED',
-      `Current: ${hardwareNetwork.bandwidthLabel}\nConnection: ${hardwareNetwork.connectionType.toUpperCase()}\nStatus: ${hardwareNetwork.isConnected ? 'CONNECTED' : 'OFFLINE'}\n\nTesting live throughput over Internet link...`,
+      'Network Connection Status',
+      `Current: ${hardwareNetwork.bandwidthLabel}\nType: ${hardwareNetwork.connectionType.toUpperCase()}\nStatus: ${hardwareNetwork.isConnected ? 'Connected' : 'Offline'}\n\nUnattended upload engine automatically syncs when network is available.`,
     );
   };
 
-  // Compose action: Enqueues a new report locally with real picked images
-  const handleQueueReport = (description: string, attachments: Attachment[]) => {
+  // Enqueue report to persistent disk queue
+  const handleQueueReport = async (description: string, attachments: Attachment[]) => {
     const newReport: Report = {
       id: Math.random().toString(36).substring(2) + Date.now().toString(36),
       description,
@@ -262,23 +128,19 @@ function App() {
       retryCount: 0,
     };
 
-    setReports(prev => [newReport, ...prev]);
+    await queueStore.enqueueReport(newReport);
     setActiveTab('outbox');
+    uploadEngine.tick(); // Promptly attempt upload if online
   };
 
-  const handleRetryReport = (id: string) => {
-    setReports(prev =>
-      prev.map(r =>
-        r.id === id
-          ? {
-              ...r,
-              status: 'in_queue',
-              nextRetryAt: undefined,
-              errorMessage: undefined,
-            }
-          : r,
-      ),
-    );
+  // Manual retry trigger
+  const handleRetryReport = async (id: string) => {
+    await queueStore.updateReport(id, {
+      status: 'in_queue',
+      nextRetryAt: undefined,
+      errorMessage: undefined,
+    });
+    uploadEngine.tick();
   };
 
   const handleUpdateChaos = async (newConfig: ChaosConfig) => {
@@ -287,18 +149,19 @@ function App() {
   };
 
   const handleExecuteReset = async (radius: BlastRadius) => {
+    await draftStore.clearDraft();
     if (radius === 'local_queue_only') {
-      setReports([]);
+      await queueStore.clearQueue();
       setChaosModalVisible(false);
-      Alert.alert('LOCAL RESET DONE', 'Device queue and local drafts have been wiped.');
+      Alert.alert('Local Queue Cleared', 'Phone outbox and local drafts have been wiped.');
     } else {
-      setReports([]);
+      await queueStore.clearQueue();
       setServerReports([]);
       await api.resetServer();
       setChaosModalVisible(false);
       Alert.alert(
-        'COMPLETE SYSTEM WIPE',
-        'Local queue cleared AND server database purged to factory zero.',
+        'System Reset Complete',
+        'Phone outbox cleared AND server database purged to factory zero.',
       );
     }
   };

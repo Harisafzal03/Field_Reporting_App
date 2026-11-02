@@ -34,9 +34,9 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         accessibilityLabel="Inspect report findings and uploaded images">
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.serverTag}>SERVER_ID // {item.id.slice(0, 8).toUpperCase()}</Text>
+            <Text style={styles.serverTag}>Server Record #{item.id.slice(0, 8)}</Text>
             <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedText}>DB_COMMITTED</Text>
+              <Text style={styles.verifiedText}>Confirmed on server</Text>
             </View>
           </View>
 
@@ -44,7 +44,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
 
           <View style={styles.attachmentsRow}>
             <Text style={styles.attachmentsText}>
-              PHOTOS: {item.attachments.length} STORED ON DISK
+              {item.attachments.length} {item.attachments.length === 1 ? 'photo' : 'photos'} saved on server
             </Text>
             <Text style={styles.dateText}>
               {new Date(item.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -52,7 +52,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           </View>
 
           <View style={styles.inspectHintRow}>
-            <Text style={styles.inspectHintText}>[ TAP CARD TO VIEW UPLOADED IMAGES &amp; MESSAGE ]</Text>
+            <Text style={styles.inspectHintText}>Tap card to view details &amp; photos</Text>
           </View>
         </Card>
       </Pressable>
@@ -64,9 +64,9 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
       {/* Ground Truth Strip */}
       <View style={styles.banner}>
         <View style={styles.bannerLeft}>
-          <Text style={styles.bannerTitle}>GROUND TRUTH ARCHIVE</Text>
+          <Text style={styles.bannerTitle}>Server Archive</Text>
           <Text style={styles.bannerSubtitle}>
-            Direct query via GET /reports · Bypasses all local device state
+            Reports confirmed by the server database
           </Text>
         </View>
         <Pressable
@@ -80,7 +80,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           {loading ? (
             <ActivityIndicator size="small" color={colors.textPrimary} />
           ) : (
-            <Text style={styles.refreshText}>SYNC</Text>
+            <Text style={styles.refreshText}>Sync</Text>
           )}
         </Pressable>
       </View>
@@ -99,10 +99,9 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>[ 0 ]</Text>
-            <Text style={styles.emptyTitle}>SERVER DATABASE EMPTY</Text>
+            <Text style={styles.emptyTitle}>Server Database Empty</Text>
             <Text style={styles.emptySubtitle}>
-              Pull down to refresh or check once an outbox job completes its transmission pass.
+              Pull down to refresh or check once an outbox report completes uploading.
             </Text>
           </View>
         }
@@ -119,17 +118,6 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
-  inspectHintRow: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  inspectHintText: {
-    ...typography.micro,
-    color: colors.accentLight,
-    letterSpacing: 0.5,
-  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -149,14 +137,14 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   bannerTitle: {
-    ...typography.micro,
+    ...typography.bodySemibold,
     color: colors.textPrimary,
-    letterSpacing: 1,
+    fontSize: 14,
   },
   bannerSubtitle: {
     ...typography.caption,
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 11,
     marginTop: 2,
   },
   refreshBtn: {
@@ -171,8 +159,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceActive,
   },
   refreshText: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textPrimary,
+    fontWeight: '600',
   },
   listContent: {
     padding: spacing.lg,
@@ -188,9 +177,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   serverTag: {
-    ...typography.mono,
-    color: colors.textMuted,
-    fontSize: 11,
+    ...typography.bodySemibold,
+    color: colors.textSecondary,
+    fontSize: 12,
   },
   verifiedBadge: {
     backgroundColor: colors.emeraldMuted,
@@ -201,9 +190,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(34, 197, 94, 0.25)',
   },
   verifiedText: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.emerald,
-    fontSize: 9,
+    fontSize: 10,
+    fontWeight: '600',
   },
   description: {
     ...typography.body,
@@ -220,34 +210,39 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   attachmentsText: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   dateText: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
+  },
+  inspectHintRow: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  inspectHintText: {
+    ...typography.caption,
+    color: colors.accentLight,
+    fontSize: 11,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxxl * 2,
   },
-  emptyIcon: {
-    ...typography.mono,
-    fontSize: 24,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
   emptyTitle: {
     ...typography.h3,
     color: colors.textPrimary,
-    letterSpacing: 1,
   },
   emptySubtitle: {
-    ...typography.caption,
+    ...typography.body,
     color: colors.textMuted,
     marginTop: spacing.xs,
     textAlign: 'center',
     maxWidth: 280,
+    fontSize: 12,
   },
 });
