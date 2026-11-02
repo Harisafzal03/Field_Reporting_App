@@ -29,9 +29,9 @@ export const NetworkPill: React.FC<NetworkPillProps> = ({
     },
     offline: {
       label: 'Offline · Paused',
-      dotColor: colors.red,
-      bgColor: colors.redMuted,
-      borderColor: 'rgba(239, 68, 68, 0.35)',
+      dotColor: '#9CA3AF',
+      bgColor: colors.surfaceElevated,
+      borderColor: colors.borderHighlight,
     },
   }[speed];
 

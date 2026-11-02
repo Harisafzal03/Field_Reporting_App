@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
+import { ImageViewerModal } from '../components/ImageViewerModal';
 import { Attachment } from '../domain/types';
 import { draftStore } from '../queue/draftStore';
 import {
@@ -30,6 +30,7 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
   const [description, setDescription] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isPicking, setIsPicking] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<{ uri: string; title?: string } | null>(null);
 
   // Load existing in-progress draft on cold start (recovers after app killed in background)
   useEffect(() => {
@@ -137,7 +138,7 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
       <View style={styles.section}>
         <View style={styles.labelRow}>
           <View style={styles.labelGroup}>
-            <Text style={styles.label}>Inspection Notes (Required)</Text>
+            <Text style={styles.label}>Inspection notes (required)</Text>
             {hasDraft ? (
               <Text style={styles.draftBadge}>Draft saved on phone</Text>
             ) : null}
@@ -160,91 +161,86 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
       {/* Photographs Section */}
       <View style={styles.section}>
         <View style={styles.labelRow}>
-          <Text style={styles.label}>Site Photos (1 to 5 required)</Text>
-          <Text style={styles.counterText}>{attachments.length} of 5 attached</Text>
+          <Text style={styles.label}>Site photos (1 to 5 required)</Text>
+          <Text style={styles.counterText}>{attachments.length} of 5 photos</Text>
         </View>
 
-        <View style={styles.grid}>
-          {attachments.map((photo, index) => (
-            <Card key={photo.id} style={styles.photoCard}>
-              <Image source={{ uri: photo.uri }} style={styles.thumbnail} />
-              <View style={styles.photoMeta}>
-                <Text style={styles.photoName} numberOfLines={1}>
-                  Photo {index + 1}: {photo.fileName}
-                </Text>
-                <Text style={styles.sizeBreakdown}>
-                  File size: {(photo.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB
-                </Text>
-                <Text style={styles.compressedTag}>
-                  ✓ Under 5.0 MB limit
-                </Text>
+        {/* Attached Photos Thumbnail Grid */}
+        {attachments.length > 0 ? (
+          <View style={styles.thumbnailGrid}>
+            {attachments.map((photo) => (
+              <View key={photo.id} style={styles.gridItem}>
+                <Pressable
+                  onPress={() => setPreviewPhoto({ uri: photo.uri, title: photo.fileName })}
+                  accessibilityRole="button"
+                  accessibilityLabel="View photo full size">
+                  <Image source={{ uri: photo.uri }} style={styles.gridThumbnail} />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleRemovePhoto(photo.id)}
+                  style={styles.gridRemoveBtn}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove photo">
+                  <Text style={styles.gridRemoveText}>✕</Text>
+                </Pressable>
               </View>
-              <Pressable
-                onPress={() => handleRemovePhoto(photo.id)}
-                style={styles.removeButton}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel="Remove photo">
-                <Text style={styles.removeText}>✕</Text>
-              </Pressable>
-            </Card>
-          ))}
+            ))}
+          </View>
+        ) : null}
 
-          {remainingSlots > 0 ? (
-            <View style={styles.attachButtonsRow}>
-              <Pressable
-                onPress={handlePickFromGallery}
-                disabled={isPicking}
-                style={({ pressed }) => [
-                  styles.addSlot,
-                  pressed && styles.addSlotPressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Add photos from gallery">
-                {isPicking ? (
-                  <ActivityIndicator size="small" color={colors.textPrimary} />
-                ) : (
-                  <>
-                    <Text style={styles.addText}>Add from Gallery</Text>
-                    <Text style={styles.addSubtext}>
-                      {remainingSlots} slots available
-                    </Text>
-                  </>
-                )}
-              </Pressable>
+        {remainingSlots > 0 ? (
+          <View style={styles.attachButtonsRow}>
+            <Pressable
+              onPress={handlePickFromGallery}
+              disabled={isPicking}
+              style={({ pressed }) => [
+                styles.addSlot,
+                pressed && styles.addSlotPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Add photos from gallery">
+              {isPicking ? (
+                <ActivityIndicator size="small" color={colors.textPrimary} />
+              ) : (
+                <View style={styles.slotContent}>
+                  <GalleryIcon />
+                  <Text style={styles.addText}>Add from gallery</Text>
+                  <Text style={styles.addSubtext}>
+                    {remainingSlots} slots available
+                  </Text>
+                </View>
+              )}
+            </Pressable>
 
-              <Pressable
-                onPress={handleCaptureCamera}
-                disabled={isPicking}
-                style={({ pressed }) => [
-                  styles.addSlot,
-                  pressed && styles.addSlotPressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Take photo with camera">
-                {isPicking ? (
-                  <ActivityIndicator size="small" color={colors.textPrimary} />
-                ) : (
-                  <>
-                    <Text style={styles.addText}>Take Photo</Text>
-                    <Text style={styles.addSubtext}>Device camera</Text>
-                  </>
-                )}
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
+            <Pressable
+              onPress={handleCaptureCamera}
+              disabled={isPicking}
+              style={({ pressed }) => [
+                styles.addSlot,
+                pressed && styles.addSlotPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Take photo with camera">
+              {isPicking ? (
+                <ActivityIndicator size="small" color={colors.textPrimary} />
+              ) : (
+                <View style={styles.slotContent}>
+                  <CameraIcon />
+                  <Text style={styles.addText}>Take photo</Text>
+                  <Text style={styles.addSubtext}>Device camera</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
 
         {attachments.length > 0 ? (
           <View style={styles.summaryBox}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total photos:</Text>
-              <Text style={styles.summaryValue}>{attachments.length} of 5</Text>
-            </View>
-            <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Total payload:</Text>
-              <Text style={styles.summarySuccess}>
-                {(totalBytes / (1024 * 1024)).toFixed(2)} MB (Safe on phone)
+              <Text style={styles.summaryValue}>
+                {(totalBytes / (1024 * 1024)).toFixed(2)} MB
               </Text>
             </View>
           </View>
@@ -254,16 +250,134 @@ export const ComposeScreen: React.FC<ComposeScreenProps> = ({
       {/* Primary Action Button */}
       <View style={styles.actionContainer}>
         <Button
-          title="Save Report to Outbox"
-          subtitle="Saved to phone disk · Delivers automatically when signal returns"
+          title="Save report to outbox"
           variant="primary"
           onPress={handleQueue}
           disabled={!canSubmit}
         />
+        {!canSubmit ? (
+          <Text style={styles.missingHint}>
+            {!description.trim() && attachments.length === 0
+              ? 'Add notes and at least 1 photo'
+              : !description.trim()
+              ? 'Add notes'
+              : 'Add at least 1 photo'}
+          </Text>
+        ) : null}
       </View>
+
+      <ImageViewerModal
+        visible={Boolean(previewPhoto)}
+        imageUri={previewPhoto?.uri || null}
+        title={previewPhoto?.title}
+        onClose={() => setPreviewPhoto(null)}
+      />
     </ScrollView>
   );
 };
+
+/* Drawn Icons using plain Views (no extra icon libraries) */
+const GalleryIcon = () => (
+  <View style={iconStyles.galleryFrame}>
+    <View style={iconStyles.gallerySun} />
+    <View style={iconStyles.galleryHills}>
+      <View style={iconStyles.galleryPeak1} />
+      <View style={iconStyles.galleryPeak2} />
+    </View>
+  </View>
+);
+
+const CameraIcon = () => (
+  <View style={iconStyles.cameraWrapper}>
+    <View style={iconStyles.cameraFlash} />
+    <View style={iconStyles.cameraBody}>
+      <View style={iconStyles.cameraLens} />
+    </View>
+  </View>
+);
+
+const iconStyles = StyleSheet.create({
+  galleryFrame: {
+    width: 24,
+    height: 20,
+    borderWidth: 1.5,
+    borderColor: colors.textPrimary,
+    borderRadius: 3,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: 4,
+    backgroundColor: colors.surfaceElevated,
+  },
+  gallerySun: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.textPrimary,
+    position: 'absolute',
+    top: 3,
+    right: 4,
+  },
+  galleryHills: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  galleryPeak1: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderBottomWidth: 7,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: colors.textPrimary,
+  },
+  galleryPeak2: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 9,
+    borderRightWidth: 9,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: colors.textPrimary,
+    marginLeft: -5,
+  },
+  cameraWrapper: {
+    width: 24,
+    height: 20,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  cameraFlash: {
+    width: 7,
+    height: 3,
+    backgroundColor: colors.textPrimary,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+  },
+  cameraBody: {
+    width: 24,
+    height: 16,
+    borderWidth: 1.5,
+    borderColor: colors.textPrimary,
+    borderRadius: 3,
+    backgroundColor: colors.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraLens: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    borderWidth: 1.5,
+    borderColor: colors.textPrimary,
+  },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -295,9 +409,9 @@ const styles = StyleSheet.create({
   },
   draftBadge: {
     ...typography.caption,
-    color: colors.emerald,
+    color: colors.textSecondary,
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   charCount: {
     ...typography.caption,
@@ -323,58 +437,42 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.xs,
   },
-  grid: {
+  thumbnailGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
+    marginBottom: spacing.md,
     marginTop: spacing.xs,
   },
-  photoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.sm + 2,
+  gridItem: {
+    position: 'relative',
+    width: 72,
+    height: 72,
     borderRadius: radii.sm,
-  },
-  thumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.xs,
+    overflow: 'hidden',
     backgroundColor: colors.surfaceElevated,
-  },
-  photoMeta: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  photoName: {
-    ...typography.bodySemibold,
-    color: colors.textPrimary,
-    fontSize: 12,
-  },
-  sizeBreakdown: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
-    fontSize: 11,
-  },
-  compressedTag: {
-    ...typography.caption,
-    color: colors.emerald,
-    marginTop: 2,
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  removeButton: {
-    width: 28,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radii.xs,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  removeText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 14,
+  gridThumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  gridRemoveBtn: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(17, 24, 39, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridRemoveText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   attachButtonsRow: {
     flexDirection: 'row',
@@ -382,7 +480,7 @@ const styles = StyleSheet.create({
   },
   addSlot: {
     flex: 1,
-    minHeight: 70,
+    minHeight: 76,
     borderRadius: radii.sm,
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -394,6 +492,9 @@ const styles = StyleSheet.create({
   },
   addSlotPressed: {
     backgroundColor: colors.surfaceElevated,
+  },
+  slotContent: {
+    alignItems: 'center',
   },
   addText: {
     ...typography.bodySemibold,
@@ -407,13 +508,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   summaryBox: {
-    marginTop: spacing.md,
-    backgroundColor: colors.surfaceInput,
+    marginTop: spacing.sm,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
     borderRadius: radii.sm,
-    gap: 4,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -426,13 +527,16 @@ const styles = StyleSheet.create({
   summaryValue: {
     ...typography.caption,
     color: colors.textSecondary,
-  },
-  summarySuccess: {
-    ...typography.caption,
-    color: colors.emerald,
-    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   actionContainer: {
     marginTop: spacing.md,
+  },
+  missingHint: {
+    ...typography.caption,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: spacing.xs + 2,
+    fontSize: 12,
   },
 });

@@ -29,7 +29,7 @@ export const Button: React.FC<ButtonProps> = ({
   subtitle,
 }) => {
   const getBackgroundColor = (pressed: boolean) => {
-    if (disabled) return colors.surfaceElevated;
+    if (disabled) return '#E5E7EB';
     switch (variant) {
       case 'primary':
         return pressed ? '#E4E4E7' : colors.accentLight;
@@ -43,7 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const getTextColor = () => {
-    if (disabled) return colors.textMuted;
+    if (disabled) return '#374151';
     switch (variant) {
       case 'primary':
         return colors.accentDark;
@@ -69,9 +69,10 @@ export const Button: React.FC<ButtonProps> = ({
               ? colors.borderHighlight
               : variant === 'danger'
               ? colors.red
+              : disabled
+              ? '#D1D5DB'
               : 'transparent',
         },
-        disabled && styles.buttonDisabled,
         style,
       ]}>
       {loading ? (
@@ -83,7 +84,9 @@ export const Button: React.FC<ButtonProps> = ({
             <Text
               style={[
                 styles.subtitle,
-                variant === 'primary' ? styles.subtitlePrimary : styles.subtitleMuted,
+                variant === 'primary' && !disabled
+                  ? styles.subtitlePrimary
+                  : styles.subtitleMuted,
               ]}>
               {subtitle}
             </Text>
@@ -104,24 +107,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
   },
-  buttonDisabled: {
-    opacity: 0.35,
-  },
   text: {
     ...typography.bodySemibold,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    letterSpacing: 0,
+    fontSize: 14,
   },
   subtitle: {
     ...typography.caption,
     marginTop: 2,
     fontSize: 11,
-    letterSpacing: 0.1,
+    letterSpacing: 0,
   },
   subtitlePrimary: {
-    color: 'rgba(9, 9, 11, 0.75)',
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   subtitleMuted: {
-    color: colors.textMuted,
+    color: '#4B5563',
   },
 });

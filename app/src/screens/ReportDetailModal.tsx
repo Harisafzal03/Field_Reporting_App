@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Image,
   Modal,
@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { ImageViewerModal } from '../components/ImageViewerModal';
 import { Report, ServerReport } from '../domain/types';
 import { api } from '../services/api';
 import { colors, radii, spacing, typography } from '../theme';
@@ -26,9 +27,12 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   report,
   onClose,
 }) => {
+  const [previewPhoto, setPreviewPhoto] = useState<{ uri: string; title?: string } | null>(null);
+
   if (!report) return null;
 
-  const serverId = (report as ServerReport).id || (report as Report).serverReportId || report.id;
+  const reportId = (report as ServerReport).reportId || report.id;
+  const shortRef = '#' + reportId.slice(0, 6).toUpperCase();
   const description = report.description;
   const timestamp = (report as ServerReport).receivedAt
     ? new Date((report as ServerReport).receivedAt).toLocaleString()
@@ -72,10 +76,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             <View style={styles.header}>
               <View style={styles.headerTitleGroup}>
                 <Text style={styles.headerSub}>
-                  {isServerReport ? 'Server Confirmed Inspection' : 'Outbox Draft (Local)'}
+                  {isServerReport ? 'Delivered to server' : 'Saved on phone'}
                 </Text>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                  Report #{serverId.slice(0, 12)}
+                <Text style={[styles.headerTitle, { fontVariant: ['tabular-nums'] }]} numberOfLines={1}>
+                  {shortRef}
                 </Text>
               </View>
               {/* Close Button */}
@@ -101,12 +105,14 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               keyboardShouldPersistTaps="handled">
               {/* Description Card */}
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Inspection Notes</Text>
+                <Text style={styles.sectionLabel}>Inspection notes</Text>
                 <Card style={styles.descriptionCard}>
                   <Text style={styles.descriptionText}>{description}</Text>
                   <View style={styles.timestampRow}>
-                    <Text style={styles.timestampLabel}>Date &amp; Time:</Text>
-                    <Text style={styles.timestampValue}>{timestamp}</Text>
+                    <Text style={styles.timestampLabel}>Time:</Text>
+                    <Text style={[styles.timestampValue, { fontVariant: ['tabular-nums'] }]}>
+                      {timestamp}
+                    </Text>
                   </View>
                 </Card>
               </View>
@@ -115,10 +121,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               <View style={styles.section}>
                 <View style={styles.photoHeaderRow}>
                   <Text style={styles.sectionLabel}>
-                    Attached Photos ({attachments.length} of 5)
+                    Attached photos ({attachments.length} of 5)
                   </Text>
                   <Text style={styles.serverStorageTag}>
-                    {isServerReport ? 'Confirmed on server' : 'Saved on this phone'}
+                    {isServerReport ? 'On server' : 'Safe on phone'}
                   </Text>
                 </View>
 
@@ -128,38 +134,44 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
                   return (
                     <Card key={att.id || idx} style={styles.photoCard}>
-                      <Image
-                        source={{ uri }}
-                        style={styles.photoImage}
-                        resizeMode="cover"
-                      />
+                      <Pressable
+                        onPress={() => setPreviewPhoto({ uri, title: att.fileName || `Photo ${idx + 1}` })}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View photo ${idx + 1} full size`}>
+                        <Image
+                          source={{ uri }}
+                          style={styles.photoImage}
+                          resizeMode="cover"
+                        />
+                      </Pressable>
                       <View style={styles.photoMeta}>
                         <View style={styles.photoMetaHeader}>
                           <Text style={styles.photoIndex}>Photo {idx + 1}</Text>
-                          <Text style={styles.photoSize}>{sizeMB} MB</Text>
+                          <Text style={[styles.photoSize, { fontVariant: ['tabular-nums'] }]}>
+                            {sizeMB} MB
+                          </Text>
                         </View>
                         <Text style={styles.photoFileName} numberOfLines={1}>
                           {att.fileName}
                         </Text>
-                        <Text style={styles.ceilingCheck}>✓ Under 5.0 MB ceiling</Text>
                       </View>
                     </Card>
                   );
                 })}
               </View>
 
-              {/* Receipt Metadata */}
+              {/* Status Details */}
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Delivery Receipt</Text>
+                <Text style={styles.sectionLabel}>Status details</Text>
                 <Card style={styles.metaCard}>
                   <View style={styles.metaRow}>
-                    <Text style={styles.metaKey}>Client Report ID:</Text>
-                    <Text style={styles.metaVal}>{(report as any).reportId || report.id}</Text>
+                    <Text style={styles.metaKey}>Report reference:</Text>
+                    <Text style={[styles.metaVal, { fontVariant: ['tabular-nums'] }]}>{shortRef}</Text>
                   </View>
                   <View style={styles.metaRow}>
-                    <Text style={styles.metaKey}>Storage Status:</Text>
+                    <Text style={styles.metaKey}>Status:</Text>
                     <Text style={styles.metaSuccess}>
-                      {isServerReport ? 'Saved on server disk' : 'Safe on device storage'}
+                      {isServerReport ? 'Received on server' : 'Safe on this phone'}
                     </Text>
                   </View>
                 </Card>
@@ -168,7 +180,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               {/* Explicit Dismiss Button */}
               <View style={styles.footerAction}>
                 <Button
-                  title="Close Details"
+                  title="Close"
                   variant="secondary"
                   onPress={onClose}
                 />
@@ -177,6 +189,13 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           </View>
         </SafeAreaView>
       </View>
+
+      <ImageViewerModal
+        visible={Boolean(previewPhoto)}
+        imageUri={previewPhoto?.uri || null}
+        title={previewPhoto?.title}
+        onClose={() => setPreviewPhoto(null)}
+      />
     </Modal>
   );
 };

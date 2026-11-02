@@ -14,8 +14,10 @@ import { pickPhotosFromGallery, capturePhotoFromCamera } from '../src/services/i
 describe('End-User Compose Report Flow', () => {
   const mockOnQueueReport = jest.fn();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    const { draftStore } = require('../src/queue/draftStore');
+    await draftStore.clearDraft();
   });
 
   it('renders initial compose screen with disabled queue button when blank', async () => {
@@ -31,7 +33,7 @@ describe('End-User Compose Report Flow', () => {
     expect(textInput).toBeDefined();
 
     // Check that Queue button is disabled initially
-    const queueBtn = root!.root.findByProps({ title: 'Save Report to Outbox' });
+    const queueBtn = root!.root.findByProps({ title: 'Save report to outbox' });
     expect(queueBtn.props.disabled).toBe(true);
   });
 
@@ -85,7 +87,7 @@ describe('End-User Compose Report Flow', () => {
     });
 
     // Button should now be enabled
-    const queueBtn = root!.root.findByProps({ title: 'Save Report to Outbox' });
+    const queueBtn = root!.root.findByProps({ title: 'Save report to outbox' });
     expect(queueBtn.props.disabled).toBe(false);
 
     // Queue the report
@@ -139,7 +141,7 @@ describe('End-User Compose Report Flow', () => {
     });
 
     // Queue button should be disabled again because 0 photos are attached
-    const queueBtn = root!.root.findByProps({ title: 'Save Report to Outbox' });
+    const queueBtn = root!.root.findByProps({ title: 'Save report to outbox' });
     expect(queueBtn.props.disabled).toBe(true);
   });
 
@@ -169,7 +171,47 @@ describe('End-User Compose Report Flow', () => {
     expect(textInput.props.value).toBe('Found rusted bolts on cell tower antenna mount');
 
     // Check that queue button is immediately enabled because text and photo were restored from disk
-    const queueBtn = root!.root.findByProps({ title: 'Save Report to Outbox' });
+    const queueBtn = root!.root.findByProps({ title: 'Save report to outbox' });
     expect(queueBtn.props.disabled).toBe(false);
+  });
+
+  it('opens photo in full view modal when tapping thumbnail and closes on dismiss', async () => {
+    const mockPhoto: Attachment = {
+      id: 'photo_zoom_test',
+      uri: 'file:///data/user/0/app/cache/zoom.jpg',
+      fileName: 'zoom.jpg',
+      fileSizeBytes: 1024 * 1024,
+    };
+    (pickPhotosFromGallery as jest.Mock).mockResolvedValueOnce({
+      attachments: [mockPhoto],
+      error: null,
+    });
+
+    let root: ReactTestRenderer.ReactTestRenderer;
+    await ReactTestRenderer.act(async () => {
+      root = ReactTestRenderer.create(
+        <ComposeScreen onQueueReport={mockOnQueueReport} />,
+      );
+    });
+
+    const addGalleryBtn = root!.root.findByProps({ accessibilityLabel: 'Add photos from gallery' });
+    await ReactTestRenderer.act(async () => {
+      addGalleryBtn.props.onPress();
+    });
+
+    // Tap on the thumbnail to open full view modal
+    const viewPhotoBtn = root!.root.findByProps({ accessibilityLabel: 'View photo full size' });
+    await ReactTestRenderer.act(async () => {
+      viewPhotoBtn.props.onPress();
+    });
+
+    // Verify modal is open with the photo
+    const closeBtn = root!.root.findByProps({ accessibilityLabel: 'Close photo viewer' });
+    expect(closeBtn).toBeDefined();
+
+    // Tap close to dismiss full view
+    await ReactTestRenderer.act(async () => {
+      closeBtn.props.onPress();
+    });
   });
 });

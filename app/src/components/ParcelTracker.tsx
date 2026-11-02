@@ -26,10 +26,10 @@ export const ParcelTracker: React.FC<ParcelTrackerProps> = ({
       <View style={styles.trackRow}>
         {/* Step 1: Saved on phone */}
         <View style={styles.stepNode}>
-          <View style={[styles.circle, styles.circleCompleted]}>
+          <View style={[styles.circle, styles.circleSaved]}>
             <Text style={styles.checkIcon}>✓</Text>
           </View>
-          <Text style={[styles.stepLabel, styles.stepLabelCompleted]}>
+          <Text style={[styles.stepLabel, styles.stepLabelSaved]}>
             Saved on phone
           </Text>
         </View>
@@ -51,14 +51,11 @@ export const ParcelTracker: React.FC<ParcelTrackerProps> = ({
           <View
             style={[
               styles.circle,
-              isDelivered && styles.circleCompleted,
               isUploading && styles.circleActive,
               step2NeedsAttention && styles.circleAttention,
               isWaiting && styles.circleWaiting,
             ]}>
-            {isDelivered ? (
-              <Text style={styles.checkIcon}>✓</Text>
-            ) : step2NeedsAttention ? (
+            {step2NeedsAttention ? (
               <Text style={styles.attentionIcon}>!</Text>
             ) : (
               <Text
@@ -73,7 +70,6 @@ export const ParcelTracker: React.FC<ParcelTrackerProps> = ({
           <Text
             style={[
               styles.stepLabel,
-              isDelivered && styles.stepLabelCompleted,
               isUploading && styles.stepLabelActive,
               step2NeedsAttention && styles.stepLabelAttention,
               isWaiting && styles.stepLabelWaiting,
@@ -90,7 +86,7 @@ export const ParcelTracker: React.FC<ParcelTrackerProps> = ({
         <View
           style={[
             styles.line,
-            isDelivered ? styles.lineActive : styles.lineInactive,
+            styles.lineInactive,
           ]}
         />
 
@@ -99,19 +95,14 @@ export const ParcelTracker: React.FC<ParcelTrackerProps> = ({
           <View
             style={[
               styles.circle,
-              isDelivered ? styles.circleCompleted : styles.circleInactive,
+              styles.circleInactive,
             ]}>
-            {isDelivered ? (
-              <Text style={styles.checkIcon}>✓</Text>
-            ) : (
-              <Text style={styles.stepNumberInactive}>3</Text>
-            )}
+            <Text style={styles.stepNumberInactive}>3</Text>
           </View>
           <Text
             style={[
               styles.stepLabel,
-              isDelivered && styles.stepLabelCompleted,
-              !isDelivered && styles.stepLabelInactive,
+              styles.stepLabelInactive,
             ]}>
             On server
           </Text>
@@ -142,7 +133,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xs,
   },
   lineActive: {
-    backgroundColor: colors.emerald,
+    backgroundColor: colors.accentLight,
   },
   lineAttention: {
     backgroundColor: colors.amber,
@@ -160,9 +151,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginBottom: 4,
   },
-  circleCompleted: {
-    backgroundColor: colors.emerald,
-    borderColor: colors.emerald,
+  circleSaved: {
+    backgroundColor: colors.accentLight,
+    borderColor: colors.accentLight,
   },
   circleActive: {
     backgroundColor: colors.surfaceElevated,
@@ -208,8 +199,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: 'center',
   },
-  stepLabelCompleted: {
-    color: colors.emerald,
+  stepLabelSaved: {
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   stepLabelActive: {

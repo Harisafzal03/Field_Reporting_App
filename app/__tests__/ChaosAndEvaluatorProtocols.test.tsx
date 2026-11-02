@@ -4,7 +4,7 @@ import { Alert, Text } from 'react-native';
 import { ChaosResetModal } from '../src/screens/ChaosResetModal';
 import { ChaosConfig } from '../src/domain/types';
 
-describe('Chaos Protocols & Blast Radius Reset Modal', () => {
+describe('Settings & Network Simulation Modal', () => {
   const mockOnClose = jest.fn();
   const mockOnUpdateChaos = jest.fn();
   const mockOnExecuteReset = jest.fn();
@@ -39,7 +39,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
     jest.restoreAllMocks();
   });
 
-  it('displays link healthy banner when no chaos conditions are active', async () => {
+  it('displays link healthy banner when no faults are active', async () => {
     let root: ReactTestRenderer.ReactTestRenderer;
     await ReactTestRenderer.act(async () => {
       root = ReactTestRenderer.create(
@@ -54,10 +54,10 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
     });
 
     const allText = root!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
-    expect(allText.some(t => t.includes('Healthy (no faults injected)'))).toBe(true);
+    expect(allText.some(t => t.includes('Normal connection'))).toBe(true);
   });
 
-  it('displays active fault tags when chaos conditions are injected', async () => {
+  it('displays active fault tags when conditions are simulated', async () => {
     let root: ReactTestRenderer.ReactTestRenderer;
     await ReactTestRenderer.act(async () => {
       root = ReactTestRenderer.create(
@@ -72,12 +72,12 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
     });
 
     const allText = root!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
-    expect(allText.some(t => t.includes('Fault active'))).toBe(true);
-    expect(allText.some(t => t.includes('+3000ms delay'))).toBe(true);
+    expect(allText.some(t => t.includes('Active condition:'))).toBe(true);
+    expect(allText.some(t => t.includes('+3s delay'))).toBe(true);
     expect(allText.some(t => t.includes('Connection drop'))).toBe(true);
   });
 
-  it('triggers preset 1 (2G Latency) on tap', async () => {
+  it('triggers slow network (2G delay) on tap', async () => {
     let root: ReactTestRenderer.ReactTestRenderer;
     await ReactTestRenderer.act(async () => {
       root = ReactTestRenderer.create(
@@ -91,7 +91,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
       );
     });
 
-    const preset1 = root!.root.findByProps({ accessibilityLabel: 'Test Case 1 2G Latency Preset' });
+    const preset1 = root!.root.findByProps({ accessibilityLabel: 'Slow network preset' });
     expect(preset1).toBeDefined();
     await ReactTestRenderer.act(async () => {
       preset1.props.onPress();
@@ -106,7 +106,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
     });
   });
 
-  it('triggers preset 2 (Drop Socket) on tap to simulate dead zone', async () => {
+  it('triggers drop connection mid-upload on tap', async () => {
     let root: ReactTestRenderer.ReactTestRenderer;
     await ReactTestRenderer.act(async () => {
       root = ReactTestRenderer.create(
@@ -120,7 +120,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
       );
     });
 
-    const preset2 = root!.root.findByProps({ accessibilityLabel: 'Test Case 2 Drop Socket Preset' });
+    const preset2 = root!.root.findByProps({ accessibilityLabel: 'Connection drops preset' });
     expect(preset2).toBeDefined();
     await ReactTestRenderer.act(async () => {
       preset2.props.onPress();
@@ -135,7 +135,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
     });
   });
 
-  it('triggers preset B (Lost Response) on tap to simulate server saving then killing reply', async () => {
+  it('triggers lost response on tap when server saves report then loses reply', async () => {
     let root: ReactTestRenderer.ReactTestRenderer;
     await ReactTestRenderer.act(async () => {
       root = ReactTestRenderer.create(
@@ -149,10 +149,10 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
       );
     });
 
-    const presetB = root!.root.findByProps({ accessibilityLabel: 'Test Case B Lost Response Preset' });
-    expect(presetB).toBeDefined();
+    const presetLost = root!.root.findByProps({ accessibilityLabel: 'Server saves then loses reply preset' });
+    expect(presetLost).toBeDefined();
     await ReactTestRenderer.act(async () => {
-      presetB.props.onPress();
+      presetLost.props.onPress();
     });
 
     expect(mockOnUpdateChaos).toHaveBeenCalledWith({
@@ -164,7 +164,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
     });
   });
 
-  it('triggers Restore Healthy Network on tap', async () => {
+  it('triggers Restore normal connection on tap', async () => {
     let root: ReactTestRenderer.ReactTestRenderer;
     await ReactTestRenderer.act(async () => {
       root = ReactTestRenderer.create(
@@ -178,7 +178,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
       );
     });
 
-    const restorePreset = root!.root.findByProps({ accessibilityLabel: 'Restore Healthy Network Preset' });
+    const restorePreset = root!.root.findByProps({ accessibilityLabel: 'Restore normal connection preset' });
     expect(restorePreset).toBeDefined();
     await ReactTestRenderer.act(async () => {
       restorePreset.props.onPress();
@@ -193,7 +193,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
     });
   });
 
-  it('allows selecting Full System Wipe blast radius and confirms execution', async () => {
+  it('allows selecting clear phone and server and confirms execution', async () => {
     let root: ReactTestRenderer.ReactTestRenderer;
     await ReactTestRenderer.act(async () => {
       root = ReactTestRenderer.create(
@@ -207,15 +207,15 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
       );
     });
 
-    // Select Full System Wipe radio option
-    const fullWipeOption = root!.root.findByProps({ accessibilityLabel: 'Radio Full System Wipe' });
+    // Select Clear phone and server option
+    const fullWipeOption = root!.root.findByProps({ accessibilityLabel: 'Clear phone and server' });
     expect(fullWipeOption).toBeDefined();
     await ReactTestRenderer.act(async () => {
       fullWipeOption.props.onPress();
     });
 
     // Press execute reset button
-    const executeBtn = root!.root.findByProps({ title: 'Execute Full System Wipe' });
+    const executeBtn = root!.root.findByProps({ title: 'Clear phone and server' });
     expect(executeBtn).toBeDefined();
 
     await ReactTestRenderer.act(async () => {

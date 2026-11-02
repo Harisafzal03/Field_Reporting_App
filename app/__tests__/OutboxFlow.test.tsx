@@ -200,9 +200,9 @@ describe('End-User Outbox & Delivery Flow', () => {
       reportCard.props.onPress();
     });
 
-    // Detail modal should be visible with technical verification
+    // Detail modal should be visible
     const allText = root!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
-    expect(allText.some(t => t.includes('Outbox Draft (Local)'))).toBe(true);
-    expect(allText.some(t => t.includes('Under 5.0 MB ceiling'))).toBe(true);
+    expect(allText.some(t => t.includes('Saved on phone'))).toBe(true);
+    expect(allText.some(t => t.includes('Inspection notes'))).toBe(true);
   });
 });

@@ -95,9 +95,9 @@ describe('End-to-End User Experience & Navigation Journey', () => {
 
     const allText = renderer!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
     expect(allText.some(t => t.includes('Field Reports'))).toBe(true);
-    expect(allText.some(t => t.includes('COMPOSE'))).toBe(true);
-    expect(allText.some(t => t.includes('OUTBOX'))).toBe(true);
-    expect(allText.some(t => t.includes('SERVER REVIEW'))).toBe(true);
+    expect(allText.some(t => t.includes('Compose'))).toBe(true);
+    expect(allText.some(t => t.includes('Outbox'))).toBe(true);
+    expect(allText.some(t => t.includes('Server review'))).toBe(true);
   });
 
   it('allows user to navigate smoothly between bottom navigation tabs', async () => {
@@ -112,7 +112,7 @@ describe('End-to-End User Experience & Navigation Journey', () => {
     });
 
     let allText = renderer!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
-    expect(allText.some(t => t.includes('Outbox is Clear'))).toBe(true);
+    expect(allText.some(t => t.includes('Outbox is clear'))).toBe(true);
 
     // Tap Server Review tab
     const reviewTab = renderer!.root.findByProps({ accessibilityLabel: 'Server review' });
@@ -121,7 +121,7 @@ describe('End-to-End User Experience & Navigation Journey', () => {
     });
 
     allText = renderer!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
-    expect(allText.some(t => t.includes('Server Archive'))).toBe(true);
+    expect(allText.some(t => t.includes('Server review'))).toBe(true);
 
     // Tap Compose tab to return
     const composeTab = renderer!.root.findByProps({ accessibilityLabel: 'Compose report' });
@@ -130,22 +130,22 @@ describe('End-to-End User Experience & Navigation Journey', () => {
     });
 
     allText = renderer!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
-    expect(allText.some(t => t.includes('Inspection Notes (Required)'))).toBe(true);
+    expect(allText.some(t => t.includes('Inspection notes'))).toBe(true);
   });
 
-  it('opens Chaos modal when evaluator taps Tools button in header', async () => {
+  it('opens Chaos modal when evaluator long-presses title in header', async () => {
     await ReactTestRenderer.act(async () => {
       renderer = ReactTestRenderer.create(<App />);
     });
 
-    const chaosButton = renderer!.root.findByProps({ accessibilityLabel: 'Open Chaos and Reset controller' });
+    const titleBtn = renderer!.root.findByProps({ accessibilityLabel: 'Field Reports title' });
     await ReactTestRenderer.act(async () => {
-      chaosButton.props.onPress();
+      titleBtn.props.onLongPress();
     });
 
     const allText = renderer!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
-    expect(allText.some(t => t.includes('Diagnostics & Fault Simulation'))).toBe(true);
-    expect(allText.some(t => t.includes('Preset Test Conditions'))).toBe(true);
+    expect(allText.some(t => t.includes('Settings & Network Simulation'))).toBe(true);
+    expect(allText.some(t => t.includes('Simulate network conditions'))).toBe(true);
   });
 
   it('triggers network info alert when inspector taps network pill', async () => {

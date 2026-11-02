@@ -211,7 +211,7 @@ function App() {
               styles.navLabel,
               activeTab === 'compose' && styles.activeNavLabel,
             ]}>
-            COMPOSE
+            Compose
           </Text>
         </Pressable>
 
@@ -226,11 +226,13 @@ function App() {
                 styles.navLabel,
                 activeTab === 'outbox' && styles.activeNavLabel,
               ]}>
-              OUTBOX
+              Outbox
             </Text>
             {pendingCount > 0 ? (
               <View style={styles.navBadge}>
-                <Text style={styles.navBadgeText}>{pendingCount}</Text>
+                <Text style={[styles.navBadgeText, { fontVariant: ['tabular-nums'] }]}>
+                  {pendingCount}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -246,7 +248,7 @@ function App() {
               styles.navLabel,
               activeTab === 'review' && styles.activeNavLabel,
             ]}>
-            SERVER REVIEW
+            Server review
           </Text>
         </Pressable>
       </View>
@@ -296,25 +298,28 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   navLabel: {
-    ...typography.micro,
+    ...typography.caption,
     color: colors.textMuted,
-    letterSpacing: 0.8,
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0,
   },
   activeNavLabel: {
     color: colors.textPrimary,
+    fontWeight: '700',
   },
   navBadge: {
     backgroundColor: colors.accentLight,
     borderRadius: radii.full,
-    minWidth: 14,
-    height: 14,
+    minWidth: 16,
+    height: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
   },
   navBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
+    fontSize: 10,
+    fontWeight: '700',
     color: colors.accentDark,
   },
 });

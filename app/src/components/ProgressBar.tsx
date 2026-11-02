@@ -20,10 +20,10 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ progress }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.metaText}>
-          PHOTO {currentAttachmentIndex + 1}/{totalAttachments} · {formatMB(bytesSent)} OF {formatMB(totalBytes)}
+        <Text style={[styles.metaText, { fontVariant: ['tabular-nums'] }]}>
+          Photo {currentAttachmentIndex + 1} of {totalAttachments} · {formatMB(bytesSent)} of {formatMB(totalBytes)}
         </Text>
-        <Text style={styles.percentText}>{Math.round(safePercent)}%</Text>
+        <Text style={[styles.percentText, { fontVariant: ['tabular-nums'] }]}>{Math.round(safePercent)}%</Text>
       </View>
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${safePercent}%` }]} />
