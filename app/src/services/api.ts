@@ -99,6 +99,7 @@ export class ApiClient {
     description: string,
     attachments: Attachment[],
     onProgress?: (progressPercent: number) => void,
+    stallTimeoutMs: number = 15000,
   ): Promise<{ ok: boolean; reportId: string }> {
     // Uses FormData for multipart/form-data upload
     const formData = new FormData();
@@ -121,9 +122,28 @@ export class ApiClient {
       xhr.setRequestHeader('Idempotency-Key', reportId);
       xhr.setRequestHeader('Accept', 'application/json');
 
-      if (xhr.upload && onProgress) {
+      let stallTimer: any = null;
+
+      // Stall Timeout rule: Slow is fine, stopped is not.
+      // Every time bytes transfer, we reset the timer. Only 15s of 0 progress triggers an abort.
+      const resetStallTimer = () => {
+        if (stallTimer) {
+          clearTimeout(stallTimer);
+        }
+        stallTimer = setTimeout(() => {
+          try {
+            xhr.abort();
+          } catch {}
+          reject(new ApiError(0, 'Upload stalled (no progress for 15s). Auto-retrying unattended.'));
+        }, stallTimeoutMs);
+      };
+
+      resetStallTimer();
+
+      if (xhr.upload) {
         xhr.upload.onprogress = event => {
-          if (event.lengthComputable) {
+          resetStallTimer();
+          if (event.lengthComputable && onProgress) {
             const percent = (event.loaded / event.total) * 100;
             onProgress(percent);
           }
@@ -131,6 +151,7 @@ export class ApiClient {
       }
 
       xhr.onload = () => {
+        if (stallTimer) clearTimeout(stallTimer);
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const res = JSON.parse(xhr.responseText);
@@ -151,11 +172,13 @@ export class ApiClient {
       };
 
       xhr.onerror = () => {
+        if (stallTimer) clearTimeout(stallTimer);
         reject(new ApiError(0, 'Connection dropped or network unreachable. Safe on this phone.'));
       };
 
-      xhr.ontimeout = () => {
-        reject(new ApiError(0, 'Upload timed out. Safe on this phone.'));
+      xhr.onabort = () => {
+        if (stallTimer) clearTimeout(stallTimer);
+        reject(new ApiError(0, 'Upload stalled with no data transfer. Auto-retrying unattended.'));
       };
 
       xhr.send(formData);

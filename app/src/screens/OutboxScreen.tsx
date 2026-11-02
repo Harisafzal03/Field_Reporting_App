@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import {
   FlatList,
+  Image,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { Card } from '../components/Card';
+import { ParcelTracker } from '../components/ParcelTracker';
 import { ProgressBar } from '../components/ProgressBar';
-import { StatusBadge } from '../components/StatusBadge';
 import { Report } from '../domain/types';
 import { colors, radii, spacing, typography } from '../theme';
 import { ReportDetailModal } from './ReportDetailModal';
@@ -42,21 +43,69 @@ export const OutboxScreen: React.FC<OutboxScreenProps> = ({
         accessibilityRole="button"
         accessibilityLabel="Inspect report findings and photos">
         <Card style={styles.card} highlighted={isUploading}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.reportId}>Report #{item.id.slice(0, 8)}</Text>
-            <StatusBadge status={item.status} retryCount={item.retryCount} />
+          {/* Photo Thumbnails First with individual status dots */}
+          <View style={styles.thumbnailRow}>
+            {item.attachments.map((att, idx) => {
+              const isDeliveredPhoto = item.status === 'delivered';
+              const isSentInBatch =
+                item.status === 'uploading' &&
+                item.progress &&
+                idx < (item.progress.currentAttachmentIndex ?? 0);
+              const isCurrentSending =
+                item.status === 'uploading' &&
+                item.progress &&
+                idx === (item.progress.currentAttachmentIndex ?? 0);
+
+              return (
+                <View key={att.id || idx} style={styles.thumbWrapper}>
+                  <Image source={{ uri: att.uri }} style={styles.thumbImage} />
+                  <View
+                    style={[
+                      styles.thumbStatusBadge,
+                      isDeliveredPhoto || isSentInBatch
+                        ? styles.thumbSuccess
+                        : isCurrentSending
+                        ? styles.thumbSending
+                        : styles.thumbPending,
+                    ]}>
+                    <Text style={styles.thumbStatusIcon}>
+                      {isDeliveredPhoto || isSentInBatch
+                        ? '✓'
+                        : isCurrentSending
+                        ? '↑'
+                        : '●'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+            <View style={styles.photoCountSummary}>
+              <Text style={styles.photoCountText}>
+                {item.status === 'delivered'
+                  ? `${item.attachments.length} of ${item.attachments.length} arrived`
+                  : item.status === 'uploading' && item.progress
+                  ? `${Math.min(item.progress.currentAttachmentIndex ?? 0, item.attachments.length)} of ${item.attachments.length} arrived`
+                  : `${item.attachments.length} ${item.attachments.length === 1 ? 'photo' : 'photos'}`}
+              </Text>
+              <Text style={styles.photoSizeText}>{sizeInMB} MB</Text>
+            </View>
           </View>
 
+          {/* Three-step Parcel Tracker */}
+          <ParcelTracker status={item.status} retryCount={item.retryCount} />
+
+          {/* Description & metadata */}
           <Text style={styles.description} numberOfLines={2}>
             {item.description}
           </Text>
 
           <View style={styles.metaRow}>
-            <Text style={styles.metaText}>
-              {item.attachments.length} {item.attachments.length === 1 ? 'photo' : 'photos'} ({sizeInMB} MB)
-            </Text>
+            <Text style={styles.reportId}>Report #{item.id.slice(0, 8)}</Text>
             <Text style={styles.timeText}>
-              {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {new Date(item.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </Text>
           </View>
 
@@ -191,14 +240,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: spacing.sm,
     alignItems: 'center',
-    borderRadius: radii.xs,
+    borderRadius: radii.sm,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
   activeTab: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: colors.borderLight,
+    borderColor: colors.borderHighlight,
   },
   tabText: {
     ...typography.caption,
@@ -215,30 +264,74 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.xs,
   },
-  cardHeader: {
+  thumbnailRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.xs + 2,
     marginBottom: spacing.xs,
   },
-  reportId: {
-    ...typography.bodySemibold,
-    color: colors.textSecondary,
-    fontSize: 12,
+  thumbWrapper: {
+    position: 'relative',
+  },
+  thumbImage: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.xs,
+    backgroundColor: colors.surfaceElevated,
+  },
+  thumbStatusBadge: {
+    position: 'absolute',
+    bottom: -3,
+    right: -3,
+    width: 14,
+    height: 14,
+    borderRadius: radii.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.surface,
+  },
+  thumbSuccess: {
+    backgroundColor: colors.emerald,
+  },
+  thumbSending: {
+    backgroundColor: colors.blue,
+  },
+  thumbPending: {
+    backgroundColor: colors.textMuted,
+  },
+  thumbStatusIcon: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  photoCountSummary: {
+    marginLeft: spacing.xs,
+  },
+  photoCountText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  photoSizeText: {
+    ...typography.micro,
+    color: colors.textMuted,
   },
   description: {
     ...typography.body,
     color: colors.textPrimary,
     marginVertical: spacing.xs,
+    lineHeight: 18,
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: spacing.xs,
   },
-  metaText: {
+  reportId: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: colors.textMuted,
+    fontSize: 11,
   },
   timeText: {
     ...typography.caption,
@@ -260,10 +353,10 @@ const styles = StyleSheet.create({
   retryBanner: {
     marginTop: spacing.xs,
     padding: spacing.xs + 4,
-    backgroundColor: 'rgba(234, 179, 8, 0.08)',
+    backgroundColor: colors.amberMuted,
     borderRadius: radii.xs,
     borderWidth: 1,
-    borderColor: 'rgba(234, 179, 8, 0.25)',
+    borderColor: 'rgba(217, 119, 6, 0.25)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -283,7 +376,7 @@ const styles = StyleSheet.create({
   },
   retryNowText: {
     ...typography.caption,
-    color: colors.accentDark,
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
   },
@@ -293,7 +386,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.redMuted,
     borderRadius: radii.xs,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(220, 38, 38, 0.3)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

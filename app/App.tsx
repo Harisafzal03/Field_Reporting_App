@@ -55,6 +55,7 @@ function App() {
     dropConnection: false,
     simulate500: false,
     hangRequest: false,
+    lostResponse: false,
   });
 
   // Sync with backend database (GET /reports)
@@ -73,7 +74,7 @@ function App() {
   // Initialize queue persistence and upload engine
   useEffect(() => {
     // Attempt auto-detect active server host in background
-    api.resolveActiveBaseUrl().catch(() => {});
+    api.resolveActiveBaseUrl().catch(() => { });
 
     // 1. Hydrate queue from disk on launch
     queueStore.loadQueueFromDisk();
@@ -170,7 +171,7 @@ function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
 
       {/* Top Header */}
       <Header

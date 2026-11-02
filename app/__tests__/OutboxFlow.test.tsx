@@ -99,7 +99,7 @@ describe('End-User Outbox & Delivery Flow', () => {
     }
   });
 
-  it('renders pending reports with disk-safe status honesty', async () => {
+  it('renders pending reports with three-step parcel tracker and photo thumbnails first', async () => {
     await ReactTestRenderer.act(async () => {
       root = ReactTestRenderer.create(
         <OutboxScreen
@@ -111,7 +111,9 @@ describe('End-User Outbox & Delivery Flow', () => {
 
     const allText = root!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
     expect(allText.some(t => t.includes('Stairwell electrical conduit'))).toBe(true);
-    expect(allText.some(t => t.includes('Waiting for signal · Safe on phone'))).toBe(true);
+    expect(allText.some(t => t.includes('Saved on phone'))).toBe(true);
+    expect(allText.some(t => t.includes('Sending'))).toBe(true);
+    expect(allText.some(t => t.includes('On server'))).toBe(true);
     expect(allText.some(t => t.includes('Safe on this phone'))).toBe(true);
   });
 
@@ -126,7 +128,7 @@ describe('End-User Outbox & Delivery Flow', () => {
     });
 
     const allText = root!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
-    expect(allText.some(t => t.includes('Retry #2'))).toBe(true);
+    expect(allText.some(t => t.includes('Retrying'))).toBe(true);
     expect(allText.some(t => t.includes('Automatic retry #2 in progress'))).toBe(true);
 
     // Find and press the Retry Now button
@@ -152,7 +154,7 @@ describe('End-User Outbox & Delivery Flow', () => {
 
     const allText = root!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
     expect(allText.some(t => t.includes('50%'))).toBe(true);
-    expect(allText.some(t => t.includes('Uploading to server...'))).toBe(true);
+    expect(allText.some(t => t.includes('Sending...'))).toBe(true);
   });
 
   it('switches between pending and delivered tabs cleanly', async () => {

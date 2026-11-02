@@ -57,22 +57,25 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
     );
   };
 
-  const applyPreset = (preset: 'latency' | 'drop' | 'error500' | 'hang' | 'clean') => {
+  const applyPreset = (preset: 'latency' | 'drop' | 'error500' | 'hang' | 'lostResponse' | 'clean') => {
     switch (preset) {
       case 'latency':
-        onUpdateChaos({ latencyMs: 3000, dropConnection: false, simulate500: false, hangRequest: false });
+        onUpdateChaos({ latencyMs: 3000, dropConnection: false, simulate500: false, hangRequest: false, lostResponse: false });
         break;
       case 'drop':
-        onUpdateChaos({ latencyMs: 0, dropConnection: true, simulate500: false, hangRequest: false });
+        onUpdateChaos({ latencyMs: 0, dropConnection: true, simulate500: false, hangRequest: false, lostResponse: false });
         break;
       case 'error500':
-        onUpdateChaos({ latencyMs: 0, dropConnection: false, simulate500: true, hangRequest: false });
+        onUpdateChaos({ latencyMs: 0, dropConnection: false, simulate500: true, hangRequest: false, lostResponse: false });
         break;
       case 'hang':
-        onUpdateChaos({ latencyMs: 0, dropConnection: false, simulate500: false, hangRequest: true });
+        onUpdateChaos({ latencyMs: 0, dropConnection: false, simulate500: false, hangRequest: true, lostResponse: false });
+        break;
+      case 'lostResponse':
+        onUpdateChaos({ latencyMs: 0, dropConnection: false, simulate500: false, hangRequest: false, lostResponse: true });
         break;
       case 'clean':
-        onUpdateChaos({ latencyMs: 0, dropConnection: false, simulate500: false, hangRequest: false });
+        onUpdateChaos({ latencyMs: 0, dropConnection: false, simulate500: false, hangRequest: false, lostResponse: false });
         break;
     }
   };
@@ -82,6 +85,7 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
   if (chaosConfig.dropConnection) activeChaos.push('Connection drop');
   if (chaosConfig.simulate500) activeChaos.push('HTTP 500 error');
   if (chaosConfig.hangRequest) activeChaos.push('Gateway timeout');
+  if (chaosConfig.lostResponse) activeChaos.push('Lost response (reply killed)');
   const isHealthy = activeChaos.length === 0;
 
   return (
@@ -257,6 +261,17 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                   </Pressable>
 
                   <Pressable
+                    onPress={() => applyPreset('lostResponse')}
+                    style={[styles.presetButton, chaosConfig.lostResponse && styles.activeDangerPreset]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Test Case B Lost Response Preset">
+                    <Text style={[styles.presetButtonTitle, chaosConfig.lostResponse && styles.textRed]}>
+                      Test B: Lost Response (Save report, kill reply)
+                    </Text>
+                    <Text style={styles.presetButtonDesc}>Saves to disk &amp; DB, then severs socket before 201 reply</Text>
+                  </Pressable>
+
+                  <Pressable
                     onPress={() => applyPreset('clean')}
                     style={[styles.presetButton, styles.restorePresetButton, isHealthy && styles.activeRestorePreset]}
                     accessibilityRole="button"
@@ -335,6 +350,21 @@ export const ChaosResetModal: React.FC<ChaosResetModalProps> = ({
                       onValueChange={() => toggleChaos('hangRequest')}
                       trackColor={{ false: colors.surfaceActive, true: colors.red }}
                       thumbColor={chaosConfig.hangRequest ? '#FFFFFF' : colors.textMuted}
+                    />
+                  </View>
+
+                  <View style={styles.switchDivider} />
+
+                  <View style={styles.switchRow}>
+                    <View style={styles.switchInfo}>
+                      <Text style={styles.switchLabel}>Lost Response (Kill Reply Socket)</Text>
+                      <Text style={styles.switchSublabel}>Saves report to disk, then closes socket without sending 201</Text>
+                    </View>
+                    <Switch
+                      value={chaosConfig.lostResponse}
+                      onValueChange={() => toggleChaos('lostResponse')}
+                      trackColor={{ false: colors.surfaceActive, true: colors.red }}
+                      thumbColor={chaosConfig.lostResponse ? '#FFFFFF' : colors.textMuted}
                     />
                   </View>
                 </Card>

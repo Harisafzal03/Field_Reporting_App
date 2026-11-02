@@ -197,4 +197,70 @@ describe('Headless Upload Engine - Isolated Logic & Error Classification', () =>
     expect(api.submitReport).toHaveBeenCalled();
     expect(queueStore.getReports()[0].status).toBe('delivered');
   });
+
+  it('handles Check B (Lost Response): retries with identical idempotency key and lands on delivered', async () => {
+    // 1st attempt: server ingested data, but socket severed before reply arrived (Lost Response)
+    (api.submitReport as jest.Mock).mockRejectedValueOnce(
+      new Error('Connection dropped or network unreachable. Safe on this phone.'),
+    );
+
+    const report: Report = {
+      id: 'rep_check_b_lost_response',
+      description: 'Check B Lost Response site audit',
+      attachments: [{ id: 'a1', uri: 'file:///p1.jpg', fileName: 'p1.jpg', fileSizeBytes: 200000 }],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      status: 'in_queue',
+      retryCount: 0,
+    };
+
+    await queueStore.enqueueReport(report);
+    await uploadEngine.tick();
+
+    // After dropped reply: preserved in queue, retryCount incremented, idempotency key unchanged
+    let queued = queueStore.getReports();
+    expect(queued[0].status).toBe('in_queue');
+    expect(queued[0].retryCount).toBe(1);
+    expect(queued[0].id).toBe('rep_check_b_lost_response');
+
+    // 2nd attempt (Retry): Server absorbs retry via same idempotency key and returns 200
+    (api.submitReport as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      reportId: 'rep_check_b_lost_response',
+    });
+
+    // Reset nextRetryAt to simulate retry timer elapsed
+    await queueStore.updateReport(report.id, { nextRetryAt: Date.now() - 1000 });
+    await uploadEngine.tick();
+
+    queued = queueStore.getReports();
+    expect(queued[0].status).toBe('delivered');
+    expect(queued[0].serverReportId).toBe('rep_check_b_lost_response');
+  });
+
+  it('handles stall timeout: aborts upload when network stalls with zero progress', async () => {
+    // Simulate stall timeout from api client
+    (api.submitReport as jest.Mock).mockRejectedValueOnce(
+      new ApiError(0, 'Upload stalled (no progress for 15s). Auto-retrying unattended.'),
+    );
+
+    const report: Report = {
+      id: 'rep_stall_timeout_test',
+      description: 'Stalled network site inspection',
+      attachments: [{ id: 'a1', uri: 'file:///p_stall.jpg', fileName: 'p_stall.jpg', fileSizeBytes: 400000 }],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      status: 'in_queue',
+      retryCount: 0,
+    };
+
+    await queueStore.enqueueReport(report);
+    await uploadEngine.tick();
+
+    const queued = queueStore.getReports();
+    // Must NOT crash or hang indefinitely; schedules automatic retry
+    expect(queued[0].status).toBe('in_queue');
+    expect(queued[0].retryCount).toBe(1);
+    expect(queued[0].errorMessage).toContain('stalled');
+  });
 });

@@ -81,7 +81,7 @@ From the repository root:
 ### `app/` (Mobile Application)
 
 ```bash
-# Run all unit tests (7 test suites, 36 tests)
+# Run all unit tests (8 test suites, 43 tests)
 yarn --cwd app test
 
 # Run TypeScript typecheck
@@ -103,6 +103,21 @@ yarn --cwd server typecheck
 
 ---
 
+## Device Verification Matrix (Checks A through H)
+
+| Check | Scenario | Steps to Execute | Expected Pass Result |
+| :---: | :--- | :--- | :--- |
+| **A** | **Airplane Mode & Restart Survival** | 1. Enable Airplane Mode.<br>2. Compose 3 reports with photos.<br>3. Force-kill: `adb shell am force-stop com.fieldreports`<br>4. Reopen app. | All 3 reports listed in Outbox, notes intact, photos open from disk. |
+| **B** | **Lost Response (Save Report, Kill Reply)** | 1. Tap **Tools** $\to$ **Test B: Lost Response**.<br>2. Queue a report with photos.<br>3. Server saves report & files, then cuts connection.<br>4. Watch app auto-retry unattended. | `ls server/uploads \| wc -l` strictly equals photo count; `/reports` shows 1 report; server unlinked duplicate retry files. |
+| **C** | **Slow 2G Emulator (Stall vs Total Timeout)** | 1. Launch emulator: `emulator -avd <name> -netspeed gsm -netdelay gprs`<br>2. Queue report with 5 photos. | Finishes slowly over 1–2 minutes without being killed by timeout because stall timer resets on active progress chunks. |
+| **D** | **Server Hang / Frozen Gateway** | 1. Tap **Tools** $\to$ **Test 4: Hang Request**.<br>2. Queue report. | App aborts after 15s of zero progress, schedules backoff retry, and stops spinner. |
+| **E** | **Largest Camera & Gallery Photos** | 1. Select largest high-res camera photos (12–48 MP). | Every file arriving in `server/uploads` is strictly under 5 MB and visually sharp (client downscales to 2048px @ 80% quality). |
+| **F** | **Permission Denied $\to$ Granted in Settings** | 1. Deny Camera permission.<br>2. Open Android Settings $\to$ Apps $\to$ Field Reports $\to$ Grant Camera.<br>3. Return to app and tap Camera. | Camera opens immediately without requiring an app restart. |
+| **G** | **Press Home Mid-Upload for 1 Minute** | 1. Queue large report.<br>2. Press Home button mid-upload for 1 minute.<br>3. Return to app. | Upload resumes unattended without tapping. |
+| **H** | **Airplane Mode Restored** | 1. Enable Airplane Mode with items in Outbox.<br>2. Turn off Airplane Mode. | Upload resumes automatically within seconds without user intervention. |
+
+---
+
 ## Make it fail
 
 To verify resilience against real-world failure modes, use the following procedures:
@@ -121,46 +136,37 @@ To verify resilience against real-world failure modes, use the following procedu
    ```
 6. Verify that the typed notes and attached photos are **automatically restored from disk** (`draftStore.ts`), with the submit button immediately ready.
 
-### 2. Airplane Mode & Outbox Restart Survival (Check 2 & Check 3)
-1. On the Android device/emulator, enable **Airplane Mode**.
-2. Open the app and navigate to **Compose**.
-3. Create 3 separate reports (e.g. one with 1 photo, one with 2 photos, and one with 5 camera photos).
-4. Tap **Save Report to Outbox** for each. Navigate to the **Outbox** tab.
-5. Verify all 3 reports are listed with status `Waiting for signal · Safe on phone`.
-6. Force kill the app process:
-   ```bash
-   adb shell am force-stop com.fieldreports
-   ```
-7. Re-launch the app:
-   ```bash
-   adb shell am start -n com.fieldreports/.MainActivity
-   ```
-8. **Check 2 Verification**: Open Outbox. Verify all 3 reports, notes, and photos are still listed. None were lost because the queue is backed by disk persistence (`queueStore.ts`).
-9. Disable Airplane Mode.
-10. **Check 3 Verification**: Without touching any button, watch the unattended upload engine automatically transmit each report sequentially. When finished, all 3 reports appear in **Server Review** with their exact photo counts matching server disk files in `server/uploads/`.
-
-### 2. Severed Connection Mid-Flight
-1. Tap the **Tools** button in the app header to open the Diagnostics modal.
-2. Under **Preset Test Conditions**, tap **Test 2: Drop Connection (Sever TCP stream)**.
+### 2. Check B: Lost Response & Duplicate File Cleanup
+1. Tap the **Tools** button in the app header to open the Chaos modal.
+2. Under **Preset Fault Conditions**, tap **Test B: Lost Response (Save report, kill reply)**.
 3. Queue a new report with photos.
-4. The server forcefully closes the socket mid-stream.
-5. In the Outbox, the report remains safe in queue (`Waiting for signal · Retry #1`), displays `Connection dropped mid-flight · Safe on this phone — auto-retrying...`, and schedules an automatic backoff retry.
-6. In the Diagnostics modal, tap **Restore Healthy Network**.
-7. The queue engine automatically resumes and completes delivery without user intervention.
+4. The server receives the report, saves photos to disk, records it in the database, and severs the TCP socket before sending HTTP 201.
+5. In the Outbox, the report status updates to retrying (`Safe on this phone. Automatic retry #1 in progress.`).
+6. The app automatically retries sending the report using the identical `Idempotency-Key`.
+7. The server recognizes the idempotency key, unlinks the temporary duplicate files written by Multer, and returns the existing record with HTTP 200.
+8. Verify on the server:
+   ```bash
+   ls server/uploads | wc -l
+   # Equals the exact number of photos in the single report!
+   curl http://localhost:3000/reports
+   # Contains exactly 1 report!
+   ```
 
-### 3. Server Flapping (HTTP 500)
+### 3. Check C & D: Progress Stall Timeout (Slow is Fine, Stopped is Not)
+1. In `api.ts`, a 15-second stall timer resets on every `xhr.upload.onprogress` chunk.
+2. When testing over throttled 2G (`-netspeed gsm -netdelay gprs`), an upload taking 90 seconds succeeds because data is continuously transferring.
+3. When testing with **Test 4: Hang Request** (zero bytes transferred), the stall timer aborts the request after 15 seconds, marks the report for retry, and prevents endless spinners.
+
+### 4. Check E: 5 MB Ceiling Pre-Upload Enforcement
+1. `imagePicker.ts` natively resizes and compresses picked and captured images to max 2048px at 80% quality.
+2. Even raw 18–48 MP photos from device cameras are compressed down to ~1.2–2.5 MB JPEGs.
+3. The app never sends an image over 5 MB.
+4. The server's 413 check serves as defense-in-depth and is never triggered during standard operations.
+
+### 5. Server Flapping (HTTP 500)
 1. In Diagnostics, tap **Test 3: HTTP 500 Error**.
 2. Queue a report. The server responds with HTTP 500.
 3. The upload engine classifies HTTP 500 as a transient failure: the report remains in the queue, increments the retry count, and auto-retries unattended.
-
-### 4. Non-Retryable Fatal Errors (HTTP 413 & HTTP 400)
-1. If a file exceeds the 5.0 MB hard ceiling at the destination, the server responds with HTTP 413.
-2. The upload engine classifies HTTP 4xx as non-transient fatal errors: it **stops retrying immediately**, marks the report as `Stopped · Action required`, and displays an actionable reason: `"Photo exceeds the 5.0 MB destination ceiling. Remove or replace the photo."`
-
-### 5. Idempotent Deduplication ("Nothing lands twice")
-1. When a report is uploaded, the client sends an immutable UUID `Idempotency-Key`.
-2. If network cuts off after the server saves the report but before the client receives the 201 response, the client retries with the identical key.
-3. The server detects the key in its processed ledger, returns the existing record with HTTP 200, and prevents duplicate rows or duplicate photo writes to disk.
 
 ---
 

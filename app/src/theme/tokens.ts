@@ -1,38 +1,41 @@
 export const colors = {
-  // Pure monochrome base
-  background: '#09090B',
-  surface: '#121214',
-  surfaceElevated: '#18181B',
-  surfaceInput: '#0E0E10',
-  surfaceActive: '#27272A',
-  
-  // High-precision hairline borders
-  border: '#27272A',
-  borderHighlight: '#3F3F46',
-  borderLight: '#52525B',
+  // Outdoor-legible light paper-like base (won't wash out in direct sunlight)
+  background: '#F9FAFB',
+  surface: '#FFFFFF',
+  surfaceElevated: '#F3F4F6',
+  surfaceInput: '#FFFFFF',
+  surfaceActive: '#E5E7EB',
 
-  // Monochromatic typography
-  textPrimary: '#FAFAFA',
-  textSecondary: '#A1A1AA',
-  textMuted: '#71717A',
-  textInverse: '#09090B',
+  // Hairline borders
+  border: '#E5E7EB',
+  borderHighlight: '#D1D5DB',
+  borderLight: '#E5E7EB',
 
-  // High-contrast monochrome buttons & chips
-  accentLight: '#FFFFFF',
-  accentDark: '#09090B',
+  // Dark ink typography
+  textPrimary: '#111827',
+  textSecondary: '#4B5563',
+  textMuted: '#6B7280',
+  textInverse: '#FFFFFF',
 
-  // Minimal functional accents (used strictly for status clarity)
-  amber: '#EAB308',
-  amberMuted: 'rgba(234, 179, 8, 0.12)',
-  emerald: '#22C55E',
-  emeraldMuted: 'rgba(34, 197, 94, 0.12)',
-  blue: '#3B82F6',
-  blueMuted: 'rgba(59, 130, 246, 0.12)',
-  red: '#EF4444',
-  redMuted: 'rgba(239, 68, 68, 0.12)',
+  // High-contrast primary action buttons
+  accentLight: '#111827',
+  accentDark: '#FFFFFF',
+
+  // ONE dedicated orange accent reserved specifically for "needs attention"
+  amber: '#D97706',
+  amberMuted: '#FEF3C7',
+
+  // Ground-truth server confirmation
+  emerald: '#059669',
+  emeraldMuted: '#D1FAE5',
+
+  blue: '#2563EB',
+  blueMuted: '#DBEAFE',
+  red: '#DC2626',
+  redMuted: '#FEE2E2',
 
   // Overlays
-  overlay: 'rgba(0, 0, 0, 0.85)',
+  overlay: 'rgba(17, 24, 39, 0.7)',
 } as const;
 
 export const spacing = {
@@ -47,11 +50,11 @@ export const spacing = {
 
 export const radii = {
   none: 0,
-  xs: 2,
-  sm: 4,
-  md: 6,
-  lg: 8,
-  xl: 12,
+  xs: 3,
+  sm: 6,
+  md: 8,
+  lg: 12,
+  xl: 16,
   full: 9999,
 } as const;
 
@@ -60,19 +63,19 @@ export const typography = {
     fontSize: 20,
     fontWeight: '700' as const,
     lineHeight: 26,
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
   h2: {
     fontSize: 16,
     fontWeight: '600' as const,
     lineHeight: 22,
-    letterSpacing: 0.3,
+    letterSpacing: 0.1,
   },
   h3: {
     fontSize: 14,
     fontWeight: '600' as const,
     lineHeight: 20,
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
   body: {
     fontSize: 13,
@@ -88,19 +91,16 @@ export const typography = {
     fontSize: 11,
     fontWeight: '500' as const,
     lineHeight: 15,
-    letterSpacing: 0.2,
   },
   micro: {
     fontSize: 10,
-    fontWeight: '700' as const,
+    fontWeight: '600' as const,
     lineHeight: 13,
-    letterSpacing: 0.8,
   },
   mono: {
     fontSize: 12,
     fontWeight: '500' as const,
     lineHeight: 16,
-    letterSpacing: 0.5,
   },
 } as const;
 

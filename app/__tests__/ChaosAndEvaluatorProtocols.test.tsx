@@ -14,6 +14,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
     dropConnection: false,
     simulate500: false,
     hangRequest: false,
+    lostResponse: false,
   };
 
   const activeChaosConfig: ChaosConfig = {
@@ -21,6 +22,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
     dropConnection: true,
     simulate500: false,
     hangRequest: false,
+    lostResponse: false,
   };
 
   beforeEach(() => {
@@ -100,6 +102,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
       dropConnection: false,
       simulate500: false,
       hangRequest: false,
+      lostResponse: false,
     });
   });
 
@@ -128,6 +131,36 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
       dropConnection: true,
       simulate500: false,
       hangRequest: false,
+      lostResponse: false,
+    });
+  });
+
+  it('triggers preset B (Lost Response) on tap to simulate server saving then killing reply', async () => {
+    let root: ReactTestRenderer.ReactTestRenderer;
+    await ReactTestRenderer.act(async () => {
+      root = ReactTestRenderer.create(
+        <ChaosResetModal
+          visible={true}
+          onClose={mockOnClose}
+          chaosConfig={healthyChaosConfig}
+          onUpdateChaos={mockOnUpdateChaos}
+          onExecuteReset={mockOnExecuteReset}
+        />,
+      );
+    });
+
+    const presetB = root!.root.findByProps({ accessibilityLabel: 'Test Case B Lost Response Preset' });
+    expect(presetB).toBeDefined();
+    await ReactTestRenderer.act(async () => {
+      presetB.props.onPress();
+    });
+
+    expect(mockOnUpdateChaos).toHaveBeenCalledWith({
+      latencyMs: 0,
+      dropConnection: false,
+      simulate500: false,
+      hangRequest: false,
+      lostResponse: true,
     });
   });
 
@@ -156,6 +189,7 @@ describe('Chaos Protocols & Blast Radius Reset Modal', () => {
       dropConnection: false,
       simulate500: false,
       hangRequest: false,
+      lostResponse: false,
     });
   });
 

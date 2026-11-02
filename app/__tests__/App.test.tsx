@@ -218,7 +218,7 @@ describe('End-to-End User Experience & Navigation Journey', () => {
     // Report should remain in outbox queue with retry status (NOT abandoned)
     const allText = renderer!.root.findAllByType(Text).map(t => Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children || ''));
     expect(allText.some(t => t.includes('HVAC unit fan belt slipped'))).toBe(true);
-    expect(allText.some(t => t.includes('Retry #1'))).toBe(true);
+    expect(allText.some(t => t.includes('retry #1') || t.includes('Retrying'))).toBe(true);
     expect(allText.some(t => t.includes('Safe on this phone'))).toBe(true);
   });
 });

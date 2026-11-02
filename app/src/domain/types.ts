@@ -59,4 +59,5 @@ export interface ChaosConfig {
   dropConnection: boolean;
   simulate500: boolean;
   hangRequest: boolean;
+  lostResponse: boolean;
 }

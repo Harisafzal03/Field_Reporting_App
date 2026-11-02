@@ -67,6 +67,7 @@ let chaosConfig = {
   dropConnection: false,
   simulate500: false,
   hangRequest: false,
+  lostResponse: false, // Saves report to disk & DB, then kills reply without responding
 };
 
 // Process-level crash protection so no network drops or socket aborts can kill the server
@@ -136,14 +137,28 @@ app.post(
     const idempotencyKey =
       (req.headers['idempotency-key'] as string) || req.body.reportId;
 
+    const files = (req.files as Express.Multer.File[]) || [];
+
     if (!idempotencyKey) {
+      // Clean up orphaned files if missing key
+      files.forEach(f => {
+        try { fs.unlinkSync(f.path); } catch {}
+      });
       res.status(400).json({ error: 'Missing Idempotency-Key header or reportId' });
       return;
     }
 
-    // "Nothing lands twice": Return existing processed report without duplicating
+    // "Nothing lands twice": Return existing processed report without duplicating.
+    // CRITICAL: Clean up the duplicate files Multer just wrote to disk so file count equals photo count!
     if (processedIdempotencyKeys.has(idempotencyKey)) {
-      console.log(`[DEDUPLICATION] Idempotent retry absorbed for report ${idempotencyKey}`);
+      console.log(`[DEDUPLICATION] Idempotent retry absorbed for report ${idempotencyKey}. Cleaning up duplicate upload files.`);
+      files.forEach(f => {
+        try {
+          if (fs.existsSync(f.path)) {
+            fs.unlinkSync(f.path);
+          }
+        } catch {}
+      });
       const existing = processedIdempotencyKeys.get(idempotencyKey)!;
       res.status(200).json({
         ok: true,
@@ -155,12 +170,17 @@ app.post(
 
     const { description } = req.body;
     if (!description || typeof description !== 'string' || !description.trim()) {
+      files.forEach(f => {
+        try { fs.unlinkSync(f.path); } catch {}
+      });
       res.status(400).json({ error: 'Description is required and cannot be blank' });
       return;
     }
 
-    const files = (req.files as Express.Multer.File[]) || [];
     if (files.length < 1 || files.length > 5) {
+      files.forEach(f => {
+        try { fs.unlinkSync(f.path); } catch {}
+      });
       res.status(400).json({ error: 'Reports require between 1 and 5 images' });
       return;
     }
@@ -168,6 +188,9 @@ app.post(
     // Verify 5 MB ceiling explicitly
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE_BYTES) {
+        files.forEach(f => {
+          try { fs.unlinkSync(f.path); } catch {}
+        });
         res.status(413).json({
           error: `File ${file.originalname} exceeds the 5 MB hard ceiling (${(file.size / (1024 * 1024)).toFixed(2)} MB)`,
         });
@@ -192,6 +215,19 @@ app.post(
     reportsDatabase.unshift(newReport);
 
     console.log(`[INGESTED] Report ${idempotencyKey} received with ${files.length} images saved to disk`);
+
+    // Check B Simulation: Server saves to disk & DB, but connection drops before reply reaches client
+    if (chaosConfig.lostResponse) {
+      console.log(`[CHAOS - LOST RESPONSE] Report ${idempotencyKey} saved to disk, now severing socket before sending 201 reply`);
+      req.on('error', () => {});
+      res.on('error', () => {});
+      if (res.socket) {
+        res.socket.on('error', () => {});
+        res.socket.destroy();
+      }
+      return;
+    }
+
     res.status(201).json({ ok: true, report: newReport });
   },
 );
