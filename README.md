@@ -42,7 +42,7 @@ The system allows a field worker to document site findings with a brief descript
    ```
    Expected response: `{"ok":true}`
 
-## Run the app (adb reverse default)
+## Run the app
 
 The default configuration connects the mobile app to the local backend through a USB connection via adb reverse.
 
@@ -59,46 +59,91 @@ The default configuration connects the mobile app to the local backend through a
    adb reverse tcp:8081 tcp:8081
    ```
 
-4. Start the Metro bundler:
+4. Install mobile dependencies:
    ```bash
    cd app
+   yarn install
+   ```
+
+5. Start the Metro bundler:
+   ```bash
    yarn start
    ```
 
-5. In a separate terminal, install and launch the Android application:
+6. In a separate terminal, install and launch the Android application:
    ```bash
    cd app
    yarn android
    ```
 
-6. Run the test suite:
-   ```bash
-   yarn --cwd app verify
-   yarn --cwd server typecheck
-   ```
+## Tests
 
-## How to make it fail (plain names)
+Run the test suite and static checks:
+
+```bash
+yarn --cwd app verify
+yarn --cwd server typecheck
+```
+
+## How to make it fail
 
 The system includes mechanisms to simulate adverse network conditions and test recovery:
 
 - **Airplane mode during upload**: Enable Airplane mode on the device while an upload is underway. The socket terminates, and the report remains in the queue in a waiting state. When Airplane mode is turned off, the app detects connectivity and resumes uploading automatically without user intervention.
 - **Background delivery after swipe from Recents**: Turn on Airplane mode, compose and queue a report, and swipe the app away from Recents (without force-stopping). When Airplane mode is turned off, Android WorkManager wakes up under the connected network constraint, uploads the report to the server in the background, and saves delivery state to disk. Running `curl http://localhost:3000/reports` verifies the report arrived without reopening the application.
-- **Dropped network connection**: Send `POST /chaos/config` with `{"dropConnection": true}` or sever the connection mid-transfer. The client catches the socket disconnect, keeps the report in the queue, and retries with backoff.
-- **Server internal error (500)**: Send `POST /chaos/config` with `{"simulate500": true}`. The server responds with HTTP 500. The upload engine marks the error as transient and schedules a retry.
-- **Severed reply after disk save (idempotency test)**: Send `POST /chaos/config` with `{"lostResponse": true}`. The server writes the uploaded report and files to disk, then closes the connection before transmitting the HTTP 201 response. When the client retries using the same report ID, the server recognizes the idempotency key, returns the existing record, and avoids storing duplicate files on disk.
-- **Throttled 2G connection**: Send `POST /chaos/config` with `{"latencyMs": 3000}` or start the Android emulator with `-netspeed gsm -netdelay gprs`. Slow data transfers continue to completion because the stall timeout tracks ongoing byte progress rather than total elapsed duration.
-- **Oversized photo payload**: Submit an attachment exceeding the 5 MB ceiling. The server rejects the submission with HTTP 413, and the client flags the report as a non-retryable failure requiring user correction.
-- **Deliberate reset**: Tap the Reset button in the app header. Choose between clearing only the local device queue (`local_queue_only`) or performing a full system wipe (`full_system_wipe`) that also purges the server database and unlinks uploaded files on disk.
+  Tested on: <PHONE MODEL>, Android <VERSION>
+- **Dropped network connection**: Send `POST /chaos/config` with `dropConnection` enabled:
+  ```bash
+  curl -X POST http://localhost:3000/chaos/config -H "Content-Type: application/json" -d '{"dropConnection": true}'
+  ```
+  The client catches the socket disconnect, keeps the report in the queue, and retries with backoff.
+- **Server internal error (500)**: Configure the server to return HTTP 500 on upload requests:
+  ```bash
+  curl -X POST http://localhost:3000/chaos/config -H "Content-Type: application/json" -d '{"simulate500": true}'
+  ```
+  The upload engine marks the error as transient and schedules a retry.
+- **Severed reply after disk save (idempotency test)**: Configure the server to save the report and photos to disk, then sever the socket before returning the HTTP 201 response:
+  ```bash
+  curl -X POST http://localhost:3000/chaos/config -H "Content-Type: application/json" -d '{"lostResponse": true}'
+  ```
+  When the client retries using the same report ID, the server recognizes the idempotency key, returns the existing record, and avoids storing duplicate files on disk.
+- **Hanged upload request**: Configure the server to accept the request but never send a response:
+  ```bash
+  curl -X POST http://localhost:3000/chaos/config -H "Content-Type: application/json" -d '{"hangRequest": true}'
+  ```
+  The client aborts the connection once the stall timeout expires and schedules a retry.
+- **Throttled 2G connection**: Inject artificial latency on upload requests:
+  ```bash
+  curl -X POST http://localhost:3000/chaos/config -H "Content-Type: application/json" -d '{"latencyMs": 3000}'
+  ```
+  Alternatively, start the Android emulator with `-netspeed gsm -netdelay gprs`. Slow data transfers continue to completion because the stall timeout tracks ongoing byte progress rather than total elapsed duration.
+- **Turn all chaos modes off**: Reset all chaos parameters back to standard operation:
+  ```bash
+  curl -X POST http://localhost:3000/chaos/config -H "Content-Type: application/json" -d '{"dropConnection": false, "simulate500": false, "hangRequest": false, "lostResponse": false, "latencyMs": 0}'
+  ```
+- **Oversized photo payload**: The mobile application downsizes photos before queueing. To test server-side rejection of oversized files, send a 6 MB file directly to the upload endpoint:
+  ```bash
+  head -c 6000000 /dev/zero > big.jpg
+  curl -i -X POST http://localhost:3000/reports \
+    -F "reportId=test-oversized" \
+    -F "description=Oversized photo test" \
+    -F "images=@big.jpg"
+  rm big.jpg
+  ```
+  The server rejects files exceeding the 5 MB ceiling with HTTP 413 Payload Too Large.
+- **Deliberate reset**: Tap the Reset button in the app header, or issue a DELETE request directly to the server:
+  ```bash
+  curl -X DELETE http://localhost:3000/reports
+  ```
+  Choose between clearing only the local device queue (`local_queue_only`) or performing a full system wipe (`full_system_wipe`) that also purges the server database and unlinks uploaded files on disk.
 
 ## Decisions and trade-offs
 
-TODO (mine)
+
 
 ## Not done
 
-- **No background delivery after force stop**: On Android, explicitly force-stopping an application (`am force-stop` or through Android Settings) places the package into a stopped state where the operating system cancels all scheduled WorkManager tasks and background alarms until the user manually relaunches the application. WorkManager delivers queued reports unattended when the app is swiped away from Recents, but cannot run after a manual force stop.
 - **iOS untested**: Development, hardware testing, and verification were performed on Android devices and emulators. iOS compilation and runtime behavior have not been tested.
-- **Byte-offset resume protocol**: Uploads stream as multipart requests per report rather than resuming mid-file byte offsets through Tus chunk patching.
 
 ## With another day
 
