@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Report } from '../domain/types';
+import { backgroundWorker } from '../services/backgroundWorker';
+import { api } from '../services/api';
 
 export const QUEUE_STORAGE_KEY = '@field_reports_persistent_queue_v1';
 
@@ -13,10 +15,15 @@ class QueueStore {
    * Loads the persistent reports array from device disk.
    * If any report was left in 'uploading' state when the app was killed/force-stopped,
    * it is safely reset to 'in_queue' so it will resume cleanly.
+   * Also checks if background WorkManager delivered reports while the app was closed.
    */
   async loadQueueFromDisk(): Promise<Report[]> {
     try {
-      const raw = await AsyncStorage.getItem(QUEUE_STORAGE_KEY);
+      const bgQueueRaw = await backgroundWorker.getPendingQueue();
+      const raw = (bgQueueRaw && bgQueueRaw.trim().length > 0)
+        ? bgQueueRaw
+        : await AsyncStorage.getItem(QUEUE_STORAGE_KEY);
+
       if (raw) {
         const parsed: Report[] = JSON.parse(raw);
         if (Array.isArray(parsed)) {
@@ -31,6 +38,9 @@ class QueueStore {
             }
             return r;
           });
+          if (bgQueueRaw) {
+            await AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(this.reports));
+          }
           this.initialized = true;
           this.notify();
           return this.getReports();
@@ -55,6 +65,16 @@ class QueueStore {
     } catch (err) {
       console.error('[QueueStore] Failed to write queue to disk:', err);
     }
+
+    // Coordinate with Android WorkManager for background process termination survival
+    const hasPending = this.reports.some(r => r.status === 'in_queue' || r.status === 'uploading');
+    if (hasPending) {
+      const baseUrl = typeof api?.getBaseUrl === 'function' ? api.getBaseUrl() : 'http://localhost:3000';
+      backgroundWorker.scheduleBackgroundWork(JSON.stringify(this.reports), baseUrl);
+    } else {
+      backgroundWorker.cancelBackgroundWork();
+    }
+
     this.notify();
   }
 
@@ -90,6 +110,7 @@ class QueueStore {
     } catch (err) {
       console.error('[QueueStore] Failed to clear disk queue:', err);
     }
+    backgroundWorker.cancelBackgroundWork();
     this.notify();
   }
 

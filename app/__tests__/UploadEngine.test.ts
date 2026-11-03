@@ -29,6 +29,7 @@ jest.mock('../src/services/api', () => {
     api: {
       submitReport: jest.fn(),
       getReports: jest.fn().mockResolvedValue([]),
+      getBaseUrl: jest.fn().mockReturnValue('http://localhost:3000'),
     },
   };
 });

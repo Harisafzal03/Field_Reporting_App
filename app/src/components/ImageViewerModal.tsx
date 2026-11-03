@@ -67,7 +67,12 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
             onPress={onClose}
             accessibilityLabel="Dismiss photo viewer by tapping background">
             <Image
-              source={{ uri: imageUri }}
+              source={{
+                uri: imageUri,
+                headers: imageUri?.startsWith('http')
+                  ? { 'ngrok-skip-browser-warning': 'true' }
+                  : undefined,
+              }}
               style={styles.fullImage}
               resizeMode="contain"
               accessibilityLabel={title || 'Full size photo preview'}

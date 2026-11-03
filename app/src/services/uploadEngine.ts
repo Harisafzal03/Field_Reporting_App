@@ -32,7 +32,16 @@ export class UploadEngine {
     const changed = this.isOffline !== offline;
     this.isOffline = offline;
     if (changed && !offline) {
-      // Came back online, immediately check queue
+      // Came back online: immediately clear any retry delay and upload automatically
+      const reports = queueStore.getReports();
+      reports.forEach(r => {
+        if (r.status === 'in_queue') {
+          queueStore.updateReport(r.id, {
+            nextRetryAt: undefined,
+            errorMessage: undefined,
+          });
+        }
+      });
       this.tick();
     }
   }
@@ -171,21 +180,32 @@ export class UploadEngine {
           updatedAt: Date.now(),
         });
       } else {
-        // TRANSIENT ERROR (Network dropped, timeout, 5xx server chaos)
-        // Keep in queue, schedule automated unattended retry with backoff
-        const newRetryCount = (report.retryCount || 0) + 1;
-        const backoffMs = Math.min(3500 * newRetryCount, 30000);
+        // TRANSIENT ERROR (Network dropped, Airplane Mode, 5xx server chaos)
+        if (this.isOffline) {
+          // In Airplane Mode / Offline: keep cleanly in queue ready to upload when signal returns
+          await queueStore.updateReport(reportId, {
+            status: 'in_queue',
+            progress: undefined,
+            errorMessage: undefined,
+            nextRetryAt: undefined,
+            updatedAt: Date.now(),
+          });
+        } else {
+          // Transient error while online (e.g. server chaos 500, socket timeout)
+          const newRetryCount = (report.retryCount || 0) + 1;
+          const backoffMs = Math.min(3500 * newRetryCount, 30000);
 
-        await queueStore.updateReport(reportId, {
-          status: 'in_queue',
-          progress: undefined,
-          retryCount: newRetryCount,
-          nextRetryAt: Date.now() + backoffMs,
-          errorMessage:
-            err?.message ||
-            'Connection dropped mid-flight. Safe on this phone — auto-retrying when signal returns.',
-          updatedAt: Date.now(),
-        });
+          await queueStore.updateReport(reportId, {
+            status: 'in_queue',
+            progress: undefined,
+            retryCount: newRetryCount,
+            nextRetryAt: Date.now() + backoffMs,
+            errorMessage:
+              err?.message ||
+              'Connection dropped mid-flight. Safe on this phone — auto-retrying when signal returns.',
+            updatedAt: Date.now(),
+          });
+        }
       }
 
       return false;

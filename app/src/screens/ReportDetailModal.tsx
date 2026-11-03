@@ -131,6 +131,9 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 {attachments.map((att, idx) => {
                   const uri = resolvePhotoUri((att as any).url || (att as any).uri);
                   const sizeMB = (att.fileSizeBytes / (1024 * 1024)).toFixed(2);
+                  const imageHeaders = uri.startsWith('http')
+                    ? { 'ngrok-skip-browser-warning': 'true' }
+                    : undefined;
 
                   return (
                     <Card key={att.id || idx} style={styles.photoCard}>
@@ -139,7 +142,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                         accessibilityRole="button"
                         accessibilityLabel={`View photo ${idx + 1} full size`}>
                         <Image
-                          source={{ uri }}
+                          source={{ uri, headers: imageHeaders }}
                           style={styles.photoImage}
                           resizeMode="cover"
                         />

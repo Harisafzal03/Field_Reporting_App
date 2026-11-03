@@ -58,6 +58,10 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         : `${api.getBaseUrl()}${firstPhoto.url}`
       : null;
 
+    const imageHeaders = photoUri?.startsWith('http')
+      ? { 'ngrok-skip-browser-warning': 'true' }
+      : undefined;
+
     return (
       <Pressable
         onPress={() => setSelectedReport(item)}
@@ -67,7 +71,11 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           <View style={styles.cardContentRow}>
             {/* 1. First photo as thumbnail loaded from the server */}
             {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.thumbnail} />
+              <Image
+                source={{ uri: photoUri, headers: imageHeaders }}
+                style={styles.thumbnail}
+                resizeMode="cover"
+              />
             ) : (
               <View style={styles.thumbnailPlaceholder}>
                 <Text style={styles.placeholderText}>No photo</Text>

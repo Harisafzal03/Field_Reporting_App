@@ -11,9 +11,9 @@ export interface HardwareNetworkStatus {
 }
 
 export function parseHardwareNetwork(state: NetInfoState): HardwareNetworkStatus {
-  const isConnected = Boolean(state.isConnected && state.isInternetReachable !== false);
+  const isConnected = Boolean(state.isConnected && state.type !== 'none');
 
-  if (!isConnected || state.type === 'none') {
+  if (!isConnected) {
     return {
       speedCategory: 'offline',
       connectionType: state.type,
