@@ -139,7 +139,9 @@ The system includes mechanisms to simulate adverse network conditions and test r
 
 ## Decisions and trade-offs
 
-
+- **Definition of unattended**: Delivery must proceed without user intervention. While the app is open, an in-process headless upload engine monitors network changes and processes the queue sequentially. When the app is swiped away from Recents, Android WorkManager takes over, listening for network connectivity to upload pending reports via native HTTP requests without requiring the app to be foregrounded.
+- **Restart, drop, and error handling**: The report queue and in-progress form drafts are persisted to disk atomically. On cold start or crash recovery, any report left in an in-flight uploading state is reset to `in_queue`. Network disconnects and 5xx responses are classified as transient and retried with exponential backoff and jitter; 4xx client errors (such as 413 payload ceiling breaches) are treated as fatal and halted with an explanatory status.
+- **Deduplication guarantee**: Each report generates a client-side UUID upon submission, sent in the `Idempotency-Key` header. The server records processed keys in an idempotency ledger. If a retry occurs after a dropped response, the server returns the existing record and discards duplicate uploaded files.
 
 ## Not done
 
